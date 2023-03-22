@@ -18,11 +18,11 @@ pip install -r requirements.txt
 
 # create file .env:
 
-export DB_USERNAME="USER NAME"
-export DB_PASSWORD="PASSWORD"
-export HOST="HOST"
-export PORT="PORT"
-export DATABASE="postgres"
+export OKNESSET_DB_USER="USER NAME"
+export OKNESSET_DB_PASSWORD="PASSWORD"
+export OKNESSET_DB_HOST="HOST"
+export OKNESSET_DB_PORT="PORT"
+export OKNESSET_DB_NAME="postgres"
 
 # execute:
 
