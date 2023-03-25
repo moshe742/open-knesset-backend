@@ -6,6 +6,7 @@ app = Flask(__name__)
 CORS(app,resources={r"/*":{"origins":"*"}})
 app.secret_key = 'oknesset#@@#'
 app.config['ENV'] = "development"
+app.config['JSON_AS_ASCII'] = False
 
 @app.route('/')
 def index():
@@ -22,6 +23,18 @@ def members_presence():
 @app.route('/discribe')
 def get_discribe():
     return {'success': True, 'data' : DB.get_discribe('members_presence')}, 200
+    
+@app.route('/members_kns/list')
+def get_members_kns_person_list():
+    status_code=200
+    data=DB.get_data_list("SELECT * FROM members_kns_person")
+    if  isinstance(data, Exception):
+        if str(data)=='No row found':
+            status_code=404
+        else:
+            status_code=400
+        return {'success': False, 'data' :str(data)},status_code     
+    return {'success': True, 'data' :data }, status_code 
     
 if __name__ == "__main__":
     app.run(debug=True)
