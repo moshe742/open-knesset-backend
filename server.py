@@ -31,6 +31,7 @@ def get_members_kns_person_list():
     if  isinstance(data, Exception):
         if str(data)=='No row found':
             status_code=404
+        #problem with user request input
         else:
             status_code=400
         return {'success': False, 'data' :str(data)},status_code     
