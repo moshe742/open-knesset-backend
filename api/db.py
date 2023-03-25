@@ -106,8 +106,7 @@ def create_query_list(start_query):
     #create the query
     query=start_query+" WHERE " + " AND ".join(where_optional_args)+"".join(other_optional_args)
     return [query,values]
-    
-    
+       
 def get_discribe(table):
     with get_db_cursor() as cur:
         sql = f"SELECT * FROM information_schema.columns WHERE table_name = '{table}'"
