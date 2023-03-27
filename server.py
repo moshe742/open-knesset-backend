@@ -28,13 +28,9 @@ def get_discribe():
 def get_members_kns_person_list():
     status_code=200
     data=DB.get_data_list("SELECT * FROM members_kns_person")
-    if  isinstance(data, Exception):
-        if str(data)=='No row found':
-            status_code=404
-        #problem with user request input
-        else:
-            status_code=400
-        return {'success': False, 'data' :str(data)},status_code     
+    if isinstance(data, Exception):
+        status_code = 404 if str(data)=='No row found' else 400
+        return {'success': False, 'data' :str(data)},status_code
     return {'success': True, 'data' :data }, status_code 
     
 if __name__ == "__main__":
