@@ -5,6 +5,7 @@ import psycopg2
 from . import config
 from flask import request
 import re
+from collections import OrderedDict
 
 def get_db_connection():
     return psycopg2.connect(
@@ -31,6 +32,23 @@ def get_data(sql):
         cur.execute(f"{sql} LIMIT 10;")
         data = cur.fetchall()
     return data
+
+
+#get all known info about current knesset members   
+def get_fully_today_kns_member(query,value):
+    #print(query)
+    try:
+        with get_db_cursor() as cur:
+            cur.execute(query,value)
+            data = cur.fetchone()
+            #get column names
+            column_names = [desc[0] for desc in cur.description]
+            #merge column names with values
+            result = {column_names[i]: data[i] for i in range(len(column_names))}
+    except Exception as e:
+        return ValueError('No such knesset member exist!')
+    return result
+
     
 #get list data        
 def get_data_list(start_query):
@@ -42,7 +60,10 @@ def get_data_list(start_query):
     try:
         with get_db_cursor() as cur:
             cur.execute(query,tuple(values))
-            return cur.fetchall()
+            data=cur.fetchall()
+            column_names = [desc[0] for desc in cur.description]
+            result = [{column_names[i]: value for i, value in enumerate(row)} for row in data]
+            return result
     except Exception as e:
         return e
 
@@ -103,7 +124,8 @@ def create_query_list(start_query):
         + "".join(other_optional_args)
     )
     return [query,values]
-       
+
+    
 def get_discribe(table):
     with get_db_cursor() as cur:
         sql = f"SELECT * FROM information_schema.columns WHERE table_name = '{table}'"
