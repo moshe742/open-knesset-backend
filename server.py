@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, url_for
 from flask_cors import CORS
 import api.db as DB
 
@@ -32,6 +32,11 @@ def get_members_kns_person_list():
         status_code = 404 if str(data)=='No row found' else 400
         return {'success': False, 'data' :str(data)},status_code
     return {'success': True, 'data' :data }, status_code 
+    
+# favicon
+@app.route('/favicon.ico')
+def favicon():
+    return url_for('static', filename='/images/hasadna-logo.ico')
     
 if __name__ == "__main__":
     app.run(debug=True)
