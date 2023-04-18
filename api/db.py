@@ -5,7 +5,6 @@ import psycopg2
 from . import config
 from flask import request
 import re
-from collections import OrderedDict
 
 def get_db_connection():
     return psycopg2.connect(
@@ -34,19 +33,16 @@ def get_data(sql):
     return data
 
 
-#get all known info about current knesset members   
-def get_fully_today_kns_member(query,value):
-    #print(query)
+#get all known info about current minister or kns member  
+def get_fully_today_member(query,value):
     try:
         with get_db_cursor() as cur:
             cur.execute(query,value)
             data = cur.fetchone()
-            #get column names
             column_names = [desc[0] for desc in cur.description]
-            #merge column names with values
-            result = {column_names[i]: data[i] for i in range(len(column_names))}
+            result = {column_names[i]: data[i] for i in range(len(column_names))}            
     except Exception as e:
-        return ValueError('No such knesset member exist!')
+        return ValueError('No such member exist!')
     return result
 
     
@@ -57,6 +53,8 @@ def get_data_list(start_query):
         return result
     query=result[0]
     values=result[1]
+    print(query)
+    print(values)
     try:
         with get_db_cursor() as cur:
             cur.execute(query,tuple(values))
