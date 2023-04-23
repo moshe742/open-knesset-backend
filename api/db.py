@@ -31,6 +31,20 @@ def get_data(sql):
         cur.execute(f"{sql} LIMIT 10;")
         data = cur.fetchall()
     return data
+
+
+#get all known info about current minister or kns member  
+def get_fully_today_member(query,value):
+    try:
+        with get_db_cursor() as cur:
+            cur.execute(query,value)
+            data = cur.fetchone()
+            column_names = [desc[0] for desc in cur.description]
+            result = {column_names[i]: data[i] for i in range(len(column_names))}            
+    except Exception as e:
+        return ValueError('No such member exist!')
+    return result
+
     
 #get list data        
 def get_data_list(start_query):
@@ -39,10 +53,15 @@ def get_data_list(start_query):
         return result
     query=result[0]
     values=result[1]
+    print(query)
+    print(values)
     try:
         with get_db_cursor() as cur:
             cur.execute(query,tuple(values))
-            return cur.fetchall()
+            data=cur.fetchall()
+            column_names = [desc[0] for desc in cur.description]
+            result = [{column_names[i]: value for i, value in enumerate(row)} for row in data]
+            return result
     except Exception as e:
         return e
 
@@ -103,7 +122,8 @@ def create_query_list(start_query):
         + "".join(other_optional_args)
     )
     return [query,values]
-       
+
+    
 def get_discribe(table):
     with get_db_cursor() as cur:
         sql = f"SELECT * FROM information_schema.columns WHERE table_name = '{table}'"
