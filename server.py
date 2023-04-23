@@ -39,7 +39,11 @@ def get_members_kns_person_list():
 @app.route('/member_kns_by_personal/<int:id>')
 def get_member_kns(id):
     status_code=200
-    id_field = "mk_individual_id" if request.path == "/member_kns_by_individual/" + str(id) else "PersonID"
+    id_field = (
+        "mk_individual_id"
+        if request.path == f"/member_kns_by_individual/{str(id)}"
+        else "PersonID"
+    )
     query = QUERY.get_member_kns_query(id_field)
     data = DB.get_fully_today_kns_member(query, (id,))
     if isinstance(data, Exception):
@@ -52,7 +56,11 @@ def get_member_kns(id):
 @app.route('/minister_by_personal/<int:id>')
 def get_minister(id):
     status_code=200
-    id_field = "mk_individual_id" if request.path == "/minister_by_individual/" + str(id) else "PersonID"
+    id_field = (
+        "mk_individual_id"
+        if request.path == f"/minister_by_individual/{str(id)}"
+        else "PersonID"
+    )
     query = QUERY.get_minister_query(id_field)
     data = DB.get_fully_today_kns_member(query, (id,))
     if isinstance(data, Exception):
