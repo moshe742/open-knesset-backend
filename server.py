@@ -1,4 +1,4 @@
-from flask import Flask,request
+from flask import Flask,request, url_for
 from flask_cors import CORS
 import api.db as DB
 import api.queries as QUERY
@@ -34,6 +34,7 @@ def get_members_kns_person_list():
         return {'success': False, 'data' :str(data)},status_code
     return {'success': True, 'data' :data }, status_code 
     
+
 @app.route('/member_kns_by_individual/<int:id>')
 @app.route('/member_kns_by_personal/<int:id>')
 def get_member_kns(id):
@@ -59,5 +60,12 @@ def get_minister(id):
         return {'success': False, 'data' :str(data)},status_code 
 
     return {'success': True, 'data' :data }, status_code         
+
+# favicon
+@app.route('/favicon.ico')
+def favicon():
+    return url_for('static', filename='/images/hasadna-logo.ico')
+    
+
 if __name__ == "__main__":
     app.run(debug=True)
