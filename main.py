@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 import api.db as DB
@@ -8,40 +9,46 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=['*']
 )
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
-@app.route('/')
-async def index():
+@app.get('/')
+async def root():
     return {'success': True, 'data': []}
 
 
-@app.route('/db')
+@app.get('/db')
 async def db_tables():
-    return {'success': True, 'data': DB.get_data("SELECT * FROM pg_catalog.pg_tables WHERE schemaname != 'pg_catalog' AND schemaname != 'information_schema'")}, 200
+    return {'success': True, 'data': DB.get_data(
+        "SELECT * FROM pg_catalog.pg_tables WHERE schemaname != 'pg_catalog' AND schemaname != 'information_schema'")}
 
 
-@app.route('/members')
+@app.get('/members')
 async def members_presence():
-    return {'success': True, 'data': DB.get_data('SELECT * FROM members_presence ORDER BY date DESC')}, 200
+    return {'success': True, 'data': DB.get_data('SELECT * FROM members_presence ORDER BY date DESC')}
 
 
-@app.route('/discribe')
+@app.get('/discribe')
 async def get_discribe():
-    return {'success': True, 'data': DB.get_discribe('members_presence')}, 200
+    return {'success': True, 'data': DB.get_discribe('members_presence')}
 
 
-@app.route('/members_kns/list')
-async def get_members_kns_person_list():
-    status_code=200
-    data=DB.get_data_list("SELECT * FROM members_kns_person")
+@app.get('/members_kns/list', status_code=200)
+async def get_members_kns_person_list(limit: int = 0, offset: int = 0, order_by: str | None = None, qs: str = None):
+    data = DB.get_data_list("SELECT * FROM members_kns_person", limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        status_code = 404 if str(data)=='No row found' else 400
-        return {'success': False, 'data' :str(data)},status_code
-    return {'success': True, 'data':data }, status_code
+        Response.status_code = status.HTTP_404_NOT_FOUND if str(data) == 'No row found' else status.HTTP_400_BAD_REQUEST
+        return {'success': False, 'data': str(data)}
+    return {'success': True, 'data': data}
+
+
+@app.get('/favicon.ico', include_in_schema=False)
+async def favicon():
+    return FileResponse('static/images/hasadna-logo.ico')
 
 
 # favicon_api = FastAPI()
