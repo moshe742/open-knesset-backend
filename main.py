@@ -46,6 +46,20 @@ async def get_members_kns_person_list(limit: int = 0, offset: int = 0, order_by:
     return {'success': True, 'data': data}
 
 
+@app.get('/minister_by_individual/<int:id>', status_code=200)
+@app.get('/minister_by_personal/<int:id>', status_code=200)
+def get_minister(person_id):
+    id_field = (
+        "mk_individual_id"
+        if request_path == f'/minister_by_individual/{str(person_id)}' else 'PersonID'
+    )
+    query = QUERY.get_minister_query(id_field)
+    data = DB.get_fully_today_kns_member(query, (person_id,))
+    if isinstance(data, Exception):
+        response.status_code = status.HTTP_404_NOT_FOUND if str(data) == 'No row found' else status.HTTP_400_BAD_REQUEST
+        return {'success': False, 'data': str(data)}
+    return {'success': True, 'data': data}
+
 @app.get('/favicon.ico', include_in_schema=False)
 async def favicon():
     return FileResponse('static/images/hasadna-logo.ico')
