@@ -108,13 +108,14 @@ def create_query_list(start_query, limit: int = 0, offset: int = 0, order_by=Non
         if not re.match(pattern, order_by):
             return ValueError('Must be this format: column1 asc/desc,column2 asc/desc..')
 
+        order_by_clause = []
         for elemt in order_by.split(','):
             parts = elemt.split(' ')
             column = parts[0]
             order_type = parts[1]
-            order_by_clause += f'"{column}" {order_type},'
-        # remove last ','
-        order_by_clause = order_by_clause[:-1]
+            order_by_clause.append(f'"{column}" {order_type}')
+
+        order_by_clause = ','.join(order_by_clause)
         other_optional_args.append(f" ORDER BY {order_by_clause}")
     # add arguments to limit clause
     # if limit is not None:
