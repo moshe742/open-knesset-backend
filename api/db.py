@@ -123,14 +123,14 @@ def create_query_list(start_query, limit: int = 0, offset: int = 0, order_by=Non
     #         return ValueError('Limit Must be an Integer!')
     if limit > 0:
         other_optional_args.append(" LIMIT %s")
-        values.append(int(limit))
+        values.append(limit)
     # add arguments to offset clause
     # if offset is not None:
     #     if not offset.isdigit() and not offset[1:].isdigit():
     #         return ValueError('Offset Must be an Integer!')
     if offset > 0:
         other_optional_args.append(" OFFSET %s")
-        values.append(int(offset))
+        values.append(offset)
     # create the query
     query = (
         f"{start_query} WHERE "
