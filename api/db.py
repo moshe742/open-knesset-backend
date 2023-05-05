@@ -1,24 +1,37 @@
+from functools import lru_cache
+import logging
+from typing_extensions import Annotated
 from contextlib import contextmanager
 
 import psycopg2
 
-from . import config
+import config
+
 import re
+from fastapi import Depends
 
 
-def get_db_connection():
+logger = logging.getLogger(__name__)
+
+
+@lru_cache
+def get_settings():
+    return config.Settings()
+
+
+def get_db_connection(settings: Annotated[config.Settings, Depends(get_settings)]):
     return psycopg2.connect(
-        host=config.OKNESSET_DB_HOST,
-        port=config.OKNESSET_DB_PORT,
-        database=config.OKNESSET_DB_NAME,
-        user=config.OKNESSET_DB_USER,
-        password=config.OKNESSET_DB_PASSWORD,
+        host=settings.oknesset_db_host,
+        port=settings.oknesset_db_port,
+        database=settings.oknesset_db_name,
+        user=settings.oknesset_db_user,
+        password=settings.oknesset_db_password,
     )
 
 
 @contextmanager
 def get_db_cursor():
-    conn = get_db_connection()
+    conn = get_db_connection(get_settings())
     cur = conn.cursor()
     try:
         yield cur

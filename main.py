@@ -23,6 +23,7 @@ async def root():
 
 @app.get('/db')
 async def db_tables():
+    print('hello')
     return {'success': True, 'data': DB.get_data(
         "SELECT * FROM pg_catalog.pg_tables WHERE schemaname != 'pg_catalog' AND schemaname != 'information_schema'")}
 
@@ -39,6 +40,7 @@ async def get_discribe():
 
 @app.get('/members_kns/list', status_code=200)
 async def get_members_kns_person_list(limit: int = 0, offset: int = 0, order_by: str | None = None, qs: str = None):
+    print(limit, offset)
     data = DB.get_data_list("SELECT * FROM members_kns_person", limit, offset, order_by, qs)
     if isinstance(data, Exception):
         Response.status_code = status.HTTP_404_NOT_FOUND if str(data) == 'No row found' else status.HTTP_400_BAD_REQUEST
