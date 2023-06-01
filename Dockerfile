@@ -5,7 +5,7 @@ WORKDIR /srv
 COPY gunicorn_conf.py ./
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
-COPY server.py ./
+COPY main.py ./
 COPY api ./api
 ENV PYTHONUNBUFFERED=1
 ENTRYPOINT ["gunicorn", "-c", "gunicorn_conf.py", "server:app"]
