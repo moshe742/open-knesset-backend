@@ -26,5 +26,4 @@ export OKNESSET_DB_NAME="postgres"
 
 # execute:
 
-set FLASK_APP=server.py
-flask run
+uvicorn main:app --reload
