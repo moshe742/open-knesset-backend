@@ -67,15 +67,10 @@ def get_data_list(start_query, limit, offset, order_by, qs):
         return result
     query=result[0]
     values=result[1]
-    print(query)
-    print(values)
     try:
         with get_db_cursor() as cur:
             cur.execute(query,tuple(values))
-            data=cur.fetchall()
-            column_names = [desc[0] for desc in cur.description]
-            result = [{column_names[i]: value for i, value in enumerate(row)} for row in data]
-            return result
+            return cur.fetchall()
     except Exception as e:
         return e
 
@@ -113,14 +108,13 @@ def create_query_list(start_query, limit: int = 0, offset: int = 0, order_by=Non
         if not re.match(pattern, order_by):
             return ValueError('Must be this format: column1 asc/desc,column2 asc/desc..')
 
-        order_by_clause = []
         for elemt in order_by.split(','):
             parts = elemt.split(' ')
             column = parts[0]
             order_type = parts[1]
-            order_by_clause.append(f'"{column}" {order_type}')
-
-        order_by_clause = ','.join(order_by_clause)
+            order_by_clause += f'"{column}" {order_type},'
+        # remove last ','
+        order_by_clause = order_by_clause[:-1]
         other_optional_args.append(f" ORDER BY {order_by_clause}")
     # add arguments to limit clause
     # if limit is not None:
@@ -128,14 +122,14 @@ def create_query_list(start_query, limit: int = 0, offset: int = 0, order_by=Non
     #         return ValueError('Limit Must be an Integer!')
     if limit > 0:
         other_optional_args.append(" LIMIT %s")
-        values.append(limit)
+        values.append(int(limit))
     # add arguments to offset clause
     # if offset is not None:
     #     if not offset.isdigit() and not offset[1:].isdigit():
     #         return ValueError('Offset Must be an Integer!')
     if offset > 0:
         other_optional_args.append(" OFFSET %s")
-        values.append(offset)
+        values.append(int(offset))
     # create the query
     query = (
         f"{start_query} WHERE "
