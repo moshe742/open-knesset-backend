@@ -47,6 +47,7 @@ accesslog = use_accesslog
 graceful_timeout = int(graceful_timeout_str)
 timeout = int(timeout_str)
 keepalive = int(keepalive_str)
+worker_class = "uvicorn.workers.UvicornWorker"
 
 
 # For debugging and testing

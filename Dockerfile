@@ -1,6 +1,6 @@
 # Pulled Jun 7, 2023
 FROM --platform=linux/amd64 python:3.10@sha256:f5ef86211c0ef0db2e3059787088221602cad7e11b238246e406aa7bbd7edc41
-RUN pip install --upgrade pip && pip install gunicorn==20.1.0
+RUN pip install --upgrade pip
 WORKDIR /srv
 COPY gunicorn_conf.py ./
 COPY requirements.txt ./
