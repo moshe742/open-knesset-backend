@@ -23,7 +23,6 @@ async def root():
 
 @app.get('/db')
 async def db_tables():
-    print('hello')
     return {'success': True, 'data': DB.get_data(
         "SELECT * FROM pg_catalog.pg_tables WHERE schemaname != 'pg_catalog' AND schemaname != 'information_schema'")}
 
@@ -40,7 +39,6 @@ async def get_discribe():
 
 @app.get('/members_kns/list', status_code=200)
 async def get_members_kns_person_list(limit: int = 0, offset: int = 0, order_by: str | None = None, qs: str = None):
-    print(limit, offset)
     data = DB.get_data_list("SELECT * FROM members_kns_person", limit, offset, order_by, qs)
     if isinstance(data, Exception):
         Response.status_code = status.HTTP_404_NOT_FOUND if str(data) == 'No row found' else status.HTTP_400_BAD_REQUEST
@@ -60,6 +58,24 @@ def get_minister(person_id):
     if isinstance(data, Exception):
         response.status_code = status.HTTP_404_NOT_FOUND if str(data) == 'No row found' else status.HTTP_400_BAD_REQUEST
         return {'success': False, 'data': str(data)}
+    return {'success': True, 'data': data}
+
+
+@app.get('/committee_sessions')
+async def committee_sessions(knesset_num: int):
+    data = DB.get_committee('committees_kns_committeesession', 'KnessetNum', knesset_num)
+    return {'success': True, 'data': data}
+
+
+@app.get('/committee')
+async def committee_sessions_by_id(committee_id: int):
+    data = DB.get_committee('committees_kns_committee', 'CommitteeID', committee_id)
+    return {'success': True, 'data': data}
+
+
+@app.get('/committee_sessions/documents')
+async def committee_sessions_by_id(committee_session_id: int):
+    data = DB.get_committee('committees_kns_documentcommitteesession', 'CommitteeSessionID', committee_session_id)
     return {'success': True, 'data': data}
 
 @app.get('/favicon.ico', include_in_schema=False)
