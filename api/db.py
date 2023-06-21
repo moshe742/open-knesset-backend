@@ -4,6 +4,7 @@ from typing_extensions import Annotated
 from contextlib import contextmanager
 
 import psycopg2
+from psycopg2.extras import RealDictCursor
 
 import config
 
@@ -32,7 +33,7 @@ def get_db_connection(settings: Annotated[config.Settings, Depends(get_settings)
 @contextmanager
 def get_db_cursor():
     conn = get_db_connection(get_settings())
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         yield cur
     finally:
@@ -46,6 +47,13 @@ def get_data(sql):
         data = cur.fetchall()
     return data
 
+
+def get_committee(table, field, value):
+    sql = f'select * from {table} where "{field}"={value}'
+    with get_db_cursor() as cur:
+        cur.execute(sql)
+        data = cur.fetchall()
+    return data
 
 #get all known info about current minister or kns member
 def get_fully_today_member(query,value):
