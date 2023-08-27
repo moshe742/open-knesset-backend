@@ -11,6 +11,7 @@ import config
 import re
 from fastapi import Depends
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -19,7 +20,9 @@ def get_settings():
     return config.Settings()
 
 
-def get_db_connection(settings: Annotated[config.Settings, Depends(get_settings)]):
+def get_db_connection(
+    settings: Annotated[config.Settings, Depends(get_settings)]
+):
     return psycopg2.connect(
         host=settings.oknesset_db_host,
         port=settings.oknesset_db_port,
@@ -38,24 +41,34 @@ def get_db_cursor():
     finally:
         cur.close()
         conn.close()
-        
 
-# get table names from database 
-def get_data_tables(limit,offset):
-    sql = f"SELECT table_name FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema') LIMIT {limit} OFFSET {offset}"
+
+# get table names from database
+def get_data_tables(limit, offset):
+    sql = (
+        f"SELECT table_name FROM information_schema.tables "
+        f"WHERE table_schema NOT IN ('pg_catalog', 'information_schema') "
+        f"LIMIT {limit} OFFSET {offset}"
+    )
+    print(sql)
     with get_db_cursor() as cur:
         cur.execute(sql)
         data = cur.fetchall()
     return data
 
-# get all columns from some table    
+
+# get all columns from some table
 def get_data_columns(table_name):
-    sql = f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}'"
+    sql = (
+        f"SELECT column_name FROM information_schema.columns"
+        f"WHERE table_name = '{table_name}'"
+    )
     with get_db_cursor() as cur:
         cur.execute(sql)
         data = cur.fetchall()
     return data
-  
+
+
 # get single data from table
 def get_single_data(table, field, value):
     sql = f'select * from {table} where "{field}"={value}'
@@ -64,13 +77,14 @@ def get_single_data(table, field, value):
         data = cur.fetchone()
     return data
 
-#get all known info about current minister or kns member
-def get_fully_today_member(query,value):
+
+# get all known info about current minister or kns member
+def get_fully_today_member(query, value):
     try:
         with get_db_cursor() as cur:
-            cur.execute(query,value)
+            cur.execute(query, value)
             data = cur.fetchone()
-    except Exception as e:
+    except Exception:
         return ValueError('No such member exist!')
     return data
 
@@ -80,74 +94,83 @@ def get_data_list(start_query, limit, offset, order_by, qs):
     result = create_query_list(start_query, limit, offset, order_by, qs)
     if isinstance(result, Exception):
         return result
-    query=result[0]
-    values=result[1]
+    query = result[0]
+    values = result[1]
     try:
         with get_db_cursor() as cur:
-            cur.execute(query,tuple(values))
+            cur.execute(query, tuple(values))
             return cur.fetchall()
     except Exception as e:
         return e
 
 
 # create query that returns data list
-def create_query_list(start_query, limit: int = 0, offset: int = 0, order_by=None, qs: str | None = None):
+def create_query_list(
+    start_query, limit: int = 0, offset: int = 0,
+    order_by=None, qs: str | None = None
+):
     # options: limit, offset, order_by
     where_optional_args = []
     # options: limit, offset, order_by
     other_optional_args = []
     # values to put in placeholders in query
     values = []
-    crc32c=False
+    crc32c = False
     # add arguments to where clause
     if qs:
         qs = qs.split('&')
         for item in qs:
             # dealing with crc32c format
-            if item[-2:]=='==':
+            if item[-2:] == '==':
                 item = item[:-2]
-                crc32c=True
+                crc32c = True
             key, val = item.split('=')
             # checking if it's crc32c format
             if crc32c:
-                val+='=='
-                crc32c=False
+                val += '=='
+                crc32c = False
             # checks if it's simple array of strings or integers
             if '[' in val:
-                val_splited=val[1:-1].split(',')
+                val_splited = val[1:-1].split(',')
+                print(val_splited)
                 # checks if it's integers array
                 try:
                     val = [int(element) for element in val_splited]
-                    is_all_digits = all(str(element).isdigit() for element in val)
-                    val=str(val)
+                    print('here3')
+                    val = str(val)
                 # if here, it's strings array
-                except:  
-                    val = [val[2:-2]]
+                except Exception:
                     val = str(val).replace("'", '"')
-                
-                val = val.replace('\\\\\\\\', '\\')                
+
+                val = val.replace('\\\\', '\\')
+                print(val)
                 values.append(val)
-                where_optional_args.append('"{0}" @> %s'.format(key))    
-            # checks if it's array of objects  
+                where_optional_args.append('"{0}" @> %s'.format(key))
+            # checks if it's array of objects
             elif '<' in val:
-                key_splited=key.split('_')
-                object_key=key_splited[0]
-                # checks if field of object has two words combine  
-                if len(key_splited)==3:
-                   object_field='{0}_{1}'.format(key_splited[1],key_splited[2])
-                # if here, field of object is one word     
+                key_splited = key.split('_')
+                object_key = key_splited[0]
+                # checks if field of object has two words combine
+                if len(key_splited) == 3:
+                    object_field = '{0}_{1}'.format(
+                        key_splited[1],
+                        key_splited[2]
+                    )
+                # if here, field of object is one word
                 else:
-                   object_field=key_splited[1]
-                   
-                # checks if field of object is integer   
-                if not(val[1:-1].isdigit()):
-                    val='[{{"{0}": "{1}"}}]'.format(object_field,val[1:-1])
-                # if here, field of object is string     
+                    object_field = key_splited[1]
+
+                # checks if field of object is integer
+                if not (val[1:-1].isdigit()):
+                    val = '[{{"{0}": "{1}"}}]'.format(object_field, val[1:-1])
+                # if here, field of object is string
                 else:
-                    val='[{{"{0}": {1}}}]'.format(object_field,val[1:-1])
+                    val = '[{{"{0}": {1}}}]'.format(object_field, val[1:-1])
                 values.append(val)
-                where_optional_args.append('"{0}" @> %s'.format(object_key, val))
-            # if here, it's simple data type integer, string or bool   
+                where_optional_args.append(
+                   '"{0}" @> %s'.format(object_key)
+                )
+            # if here, it's simple data type integer, string or bool
             else:
                 where_optional_args.append('"{0}" = %s'.format(key))
                 values.append(val)
@@ -155,14 +178,15 @@ def create_query_list(start_query, limit: int = 0, offset: int = 0, order_by=Non
     # No arguments for where clause
     if not where_optional_args:
         where_optional_args.append("1 = 1")
-    
+
     # add arguments to order by clause
     if order_by is not None:
         order_by_clause = ''
         pattern = r'^(\w+\s+(?:asc|desc))(?:,\s*\w+\s+(?:asc|desc))*\s*$'
         if not re.match(pattern, order_by, re.IGNORECASE):
-            return ValueError('Must be this format: column1 asc/desc,column2 asc/desc..')
-        
+            return ValueError('Must be this format:'
+                              'column1 asc/desc,column2 asc/desc..')
+
         for elemt in order_by.split(','):
             parts = elemt.split(' ')
             column = parts[0]
@@ -185,4 +209,15 @@ def create_query_list(start_query, limit: int = 0, offset: int = 0, order_by=Non
         + " AND ".join(where_optional_args)
         + "".join(other_optional_args)
     )
-    return [query,values]
+    return [query, values]
+
+
+def get_discribe(table):
+    with get_db_cursor() as cur:
+        sql = (
+            f"SELECT * FROM information_schema.columns"
+            f"WHERE table_name = '{table}'"
+        )
+        cur.execute(sql)
+        data = cur.fetchall()
+    return data
