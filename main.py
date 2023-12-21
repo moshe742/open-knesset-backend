@@ -1,12 +1,13 @@
 from fastapi import FastAPI, status, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-
+from pydantic import BaseModel
+from typing import List, Union ,Optional, List
+import models.current_minister as current_minister
+import models.current_knesset_member as current_knesset_member
 import api.db as DB
 
 from api import queries as QUERY
-
-from typing import Optional, List
 
 from datetime import datetime
 from datetime import date
@@ -23,32 +24,14 @@ app.add_middleware(
     expose_headers=['*']
 )
 
-
-@app.get('/db', tags=['db'],
-         description="Get the Open Knesset's database "
-         "table names and their columns")
-async def db_tables(
-        request: Request,
-        limit: int = 0,
-        offset: int = 0):
-    table_columns = {}
-    tables = DB.get_data_tables(limit, offset)
-    for table in tables:
-        table_name = table['table_name']
-        columns = DB.get_data_columns(table_name)
-        column_names = [column['column_name'] for column in columns]
-        table_columns[table_name] = column_names
-
-    result = {'success': True, 'data': table_columns}
-    return result
-
-
+    
+    
 # Route for list"bills_kns_billunion" table
 @app.get("/bills_kns_billunion/list", status_code=200,
-         tags=['bills_kns_billunion'])
+         tags=['bills'])
 async def get_billunion_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     MainBillID: Optional[int] = None,
@@ -73,7 +56,7 @@ async def get_billunion_list(
 
 
 # Route for single "bills_kns_billunion" table
-@app.get('/bills_kns_billunion/{BillUnionID}', tags=['bills_kns_billunion'])
+@app.get('/bills_kns_billunion/{BillUnionID}', tags=['bills'])
 async def get_bill_union(BillUnionID: int):
     data = DB.get_single_data('bills_kns_billunion', 'BillUnionID',
                               BillUnionID)
@@ -82,10 +65,10 @@ async def get_bill_union(BillUnionID: int):
 
 # Route for list knesset_kns_govministry table
 @app.get("/knesset_kns_govministry/list", status_code=200,
-         tags=["knesset_kns_govministry"])
+         tags=["knesset"])
 async def get_govministry_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     Name: Optional[str] = None,
@@ -111,7 +94,7 @@ async def get_govministry_list(
 
 # Route for single "knesset_kns_govministry" table
 @app.get('/knesset_kns_govministry/{GovMinistryID}',
-         tags=["knesset_kns_govministry"])
+         tags=["knesset"])
 async def get_gov_ministry(GovMinistryID: int):
     data = DB.get_single_data('knesset_kns_govministry',
                               'GovMinistryID', GovMinistryID)
@@ -120,10 +103,10 @@ async def get_gov_ministry(GovMinistryID: int):
 
 # Route for list plenum_kns_documentplenumsession table
 @app.get("/plenum_kns_documentplenumsession/list", status_code=200,
-         tags=["plenum_kns_documentplenumsession"])
+         tags=["plenum"])
 async def get_documentplenumsession_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     PlenumSessionID: Optional[int] = None,
@@ -153,7 +136,7 @@ async def get_documentplenumsession_list(
 
 # Route for single "plenum_kns_documentplenumsession" table
 @app.get('/plenum_kns_documentplenumsession/{DocumentPlenumSessionID}',
-         tags=["plenum_kns_documentplenumsession"])
+         tags=["plenum"])
 async def get_document_plenum_session(DocumentPlenumSessionID: int):
     data = DB.get_single_data('plenum_kns_documentplenumsession',
                               'DocumentPlenumSessionID',
@@ -163,10 +146,10 @@ async def get_document_plenum_session(DocumentPlenumSessionID: int):
 
 # Route for list members_mk_individual_faction_chairpersons table
 @app.get("/members_mk_individual_faction_chairpersons/list", status_code=200,
-         tags=["members_mk_individual_faction_chairpersons"])
+         tags=["members"])
 async def get_faction_chairpersons_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     faction_id: Optional[int] = None,
@@ -194,7 +177,7 @@ async def get_faction_chairpersons_list(
 
 # Route for "members_mk_individual_faction_chairpersons" table
 @app.get('/members_mk_individual_faction_chairpersons/{mk_individual_id}',
-         tags=["members_mk_individual_faction_chairpersons"])
+         tags=["members"])
 async def get_faction_chairperson(mk_individual_id: int):
     data = DB.get_single_data('members_mk_individual_faction_chairpersons',
                               'mk_individual_id', mk_individual_id)
@@ -203,10 +186,10 @@ async def get_faction_chairperson(mk_individual_id: int):
 
 # Route for list members_mk_individual_govministries table
 @app.get("/members_mk_individual_govministries/list", status_code=200,
-         tags=["members_mk_individual_govministries"])
+         tags=["members"])
 async def get_individual_govministries_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     govministry_id: Optional[int] = None,
@@ -236,7 +219,7 @@ async def get_individual_govministries_list(
 
 # Route for single "members_mk_individual_govministries" table
 @app.get('/members_mk_individual_govministries/{mk_individual_id}',
-         tags=["members_mk_individual_govministries"])
+         tags=["members"])
 async def get_gov_ministry_member(mk_individual_id: int):
     data = DB.get_single_data('members_mk_individual_govministries',
                               'mk_individual_id', mk_individual_id)
@@ -245,10 +228,10 @@ async def get_gov_ministry_member(mk_individual_id: int):
 
 # Route for list bills_kns_billsplit table
 @app.get("/bills_kns_billsplit/list", status_code=200,
-         tags=["bills_kns_billsplit"])
+         tags=["bills"])
 async def get_billsplit_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     MainBillID: Optional[int] = None,
@@ -275,7 +258,7 @@ async def get_billsplit_list(
 
 # Route for "bills_kns_billsplit" table
 @app.get('/bills_kns_billsplit/{BillSplitID}',
-         tags=["bills_kns_billsplit"])
+         tags=["bills"])
 async def get_bill_split(BillSplitID: int):
     data = DB.get_single_data('bills_kns_billsplit', 'BillSplitID',
                               BillSplitID)
@@ -284,10 +267,10 @@ async def get_bill_split(BillSplitID: int):
 
 # Route for list bills_kns_billinitiator table
 @app.get("/bills_kns_billinitiator/list", status_code=200,
-         tags=["bills_kns_billinitiator"])
+         tags=["bills"])
 async def get_billinitiator_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     BillID: Optional[int] = None,
@@ -315,7 +298,7 @@ async def get_billinitiator_list(
 
 # Route for single "bills_kns_billinitiator" table
 @app.get('/bills_kns_billinitiator/{BillInitiatorID}',
-         tags=["bills_kns_billinitiator"])
+         tags=["bills"])
 async def get_bill_initiator(BillInitiatorID: int):
     data = DB.get_single_data('bills_kns_billinitiator',
                               'BillInitiatorID', BillInitiatorID)
@@ -324,10 +307,10 @@ async def get_bill_initiator(BillInitiatorID: int):
 
 # Route for list people_plenum_session_voters_stats table
 @app.get("/people_plenum_session_voters_stats/list",
-         status_code=200, tags=["people_plenum_session_voters_stats"])
+         status_code=200, tags=["people"])
 async def get_voters_stats_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     knesset: Optional[int] = None,
@@ -359,10 +342,10 @@ async def get_voters_stats_list(
 
 # Route for list bills_kns_billname table
 @app.get("/bills_kns_billname/list", status_code=200,
-         tags=["bills_kns_billname"])
+         tags=["bills"])
 async def get_billname_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     BillID: Optional[int] = None,
@@ -390,10 +373,10 @@ async def get_billname_list(
 
 # Route for list members_mk_individual_committees table
 @app.get("/members_mk_individual_committees/list", status_code=200,
-         tags=["members_mk_individual_committees"])
+         tags=["members"])
 async def get_individual_committees_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     mk_individual_id: Optional[int] = None,
@@ -424,10 +407,10 @@ async def get_individual_committees_list(
 
 # Route for list votes_view_vote_rslts_hdr_approved table
 @app.get("/votes_view_vote_rslts_hdr_approved/list", status_code=200,
-         tags=["votes_view_vote_rslts_hdr_approved"])
+         tags=["votes"])
 async def get_vote_rslts_hdr_approved_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     knesset_num: Optional[int] = None,
@@ -471,7 +454,7 @@ async def get_vote_rslts_hdr_approved_list(
 
 # Route for single "votes_view_vote_rslts_hdr_approved" table
 @app.get('/votes_view_vote_rslts_hdr_approved/{id}',
-         tags=["votes_view_vote_rslts_hdr_approved"])
+         tags=["votes"])
 async def get_voter_result(id: int):
     data = DB.get_single_data('votes_view_vote_rslts_hdr_approved', 'id', id)
     return {'success': True, 'data': data}
@@ -480,10 +463,10 @@ async def get_voter_result(id: int):
 # Route for list committees_kns_documentcommitteesession_dataservice table
 @app.get("/committees_kns_documentcommitteesession_dataservice/list",
          status_code=200,
-         tags=["committees_kns_documentcommitteesession_dataservice"])
+         tags=["committees"])
 async def get_documentcommitteesession_dataservice_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     CommitteeSessionID: Optional[int] = None,
@@ -513,7 +496,7 @@ async def get_documentcommitteesession_dataservice_list(
 
 # Route for single "committees_kns_documentcommitteesession_dataservice" table
 @app.get('/committees_kns_documentcommitteesession_dataservice/{DocumentCommitteeSessionID}',
-         tags=["committees_kns_documentcommitteesession_dataservice"])
+         tags=["committees"])
 async def get_document_committee_session(DocumentCommitteeSessionID: int):
     data = DB.get_single_data
     (
@@ -527,10 +510,10 @@ async def get_document_committee_session(DocumentCommitteeSessionID: int):
 # Route for list committees_kns_jointcommittee table
 @app.get("/committees_kns_jointcommittee/list",
          status_code=200,
-         tags=["committees_kns_jointcommittee"])
+         tags=["committees"])
 async def get_jointcommittee_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     CommitteeID: Optional[int] = None,
@@ -556,7 +539,7 @@ async def get_jointcommittee_list(
 
 # Route for single "committees_kns_jointcommittee" table
 @app.get('/committees_kns_jointcommittee/{JointCommitteeID}',
-         tags=["committees_kns_jointcommittee"])
+         tags=["committees"])
 async def get_joint_committee(JointCommitteeID: int):
     data = DB.get_single_data('committees_kns_jointcommittee',
                               'JointCommitteeID', JointCommitteeID)
@@ -566,10 +549,10 @@ async def get_joint_committee(JointCommitteeID: int):
 # Route for list votes_vote_rslts_kmmbr_shadow_extra table
 @app.get("/votes_vote_rslts_kmmbr_shadow_extra/list",
          status_code=200,
-         tags=["votes_vote_rslts_kmmbr_shadow_extra"])
+         tags=["votes"])
 async def get_vote_rslts_kmmbr_shadow_extra_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     vote_id: Optional[int] = None,
@@ -605,10 +588,10 @@ async def get_vote_rslts_kmmbr_shadow_extra_list(
 # Route for list plenum_kns_plenumsession table
 @app.get("/plenum_kns_plenumsession/list",
          status_code=200,
-         tags=["plenum_kns_plenumsession"])
+         tags=["plenum"])
 async def get_plenumsession_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     PlenumSessionID: Optional[int] = None,
@@ -639,7 +622,7 @@ async def get_plenumsession_list(
 
 # Route for "plenum_kns_plenumsession" table
 @app.get('/bills_kns_plenumsession/{PlenumSessionID}',
-         tags=["plenum_kns_plenumsession"])
+         tags=["bills"])
 async def get_plenum_session(PlenumSessionID: int):
     data = DB.get_single_data('plenum_kns_plenumsession',
                               'PlenumSessionID', PlenumSessionID)
@@ -648,10 +631,10 @@ async def get_plenum_session(PlenumSessionID: int):
 
 # Route for list bills_kns_documentbill table
 @app.get("/bills_kns_documentbill/list",
-         status_code=200, tags=["bills_kns_documentbill"])
+         status_code=200, tags=["bills"])
 async def get_documentbill_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     BillID: Optional[int] = None,
@@ -681,7 +664,7 @@ async def get_documentbill_list(
 
 # Route for single "bills_kns_documentbill" table
 @app.get('/bills_kns_documentbill/{DocumentBillID}',
-         tags=["bills_kns_documentbill"])
+         tags=["bills"])
 async def get_document_bill(DocumentBillID: int):
     data = DB.get_single_data('bills_kns_documentbill',
                               'DocumentBillID', DocumentBillID)
@@ -690,10 +673,10 @@ async def get_document_bill(DocumentBillID: int):
 
 # Route for list bills_kns_bill__airflow table
 @app.get("/bills_kns_bill__airflow/list",
-         status_code=200, tags=["bills_kns_bill__airflow"])
+         status_code=200, tags=["bills"])
 async def get_bill__airflow_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     KnessetNum: Optional[int] = None,
@@ -735,7 +718,7 @@ async def get_bill__airflow_list(
 
 # Route for single "bills_kns_bill__airflow" table
 @app.get('/bills_kns_bill__airflow/{BillID}',
-         tags=["bills_kns_bill__airflow"])
+         tags=["bills"])
 async def get_bill_airflow(BillID: int):
     data = DB.get_single_data('bills_kns_bill__airflow', 'BillID', BillID)
     return {'success': True, 'data': data}
@@ -743,10 +726,10 @@ async def get_bill_airflow(BillID: int):
 
 # Route for list members_presence table
 @app.get("/members_presence/list",
-         status_code=200, tags=["members_presence"])
+         status_code=200, tags=["members"])
 async def get_members_presence_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     mk_id: Optional[int] = None,
@@ -777,10 +760,10 @@ async def get_members_presence_list(
 
 # Route for list committees_kns_committee__airflow table
 @app.get("/committees_kns_committee__airflow/list",
-         status_code=200, tags=["committees_kns_committee__airflow"])
+         status_code=200, tags=["committees"])
 async def get_committee__airflow_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     Name: Optional[str] = None,
@@ -818,7 +801,7 @@ async def get_committee__airflow_list(
 
 # Route for single "committees_kns_committee__airflow" table
 @app.get('/committees_kns_committee__airflow/{CommitteeID}',
-         tags=["committees_kns_committee__airflow"])
+         tags=["committees"])
 async def get_single_data_airflow(CommitteeID: int):
     data = DB.get_single_data('committees_kns_committee__airflow',
                               'CommitteeID', CommitteeID)
@@ -827,10 +810,10 @@ async def get_single_data_airflow(CommitteeID: int):
 
 # Route for list committees_build_build_meetings table
 @app.get("/committees_build_build_meetings/list",
-         status_code=200, tags=["committees_build_build_meetings"])
+         status_code=200, tags=["committees"])
 async def get_build_meetings_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     Number: Optional[int] = None,
@@ -898,7 +881,7 @@ async def get_build_meetings_list(
 
 # Route for single "committees_build_build_meetings" table
 @app.get('/committees_build_build_meetings/{CommitteeSessionID}',
-         tags=["committees_build_build_meetings"])
+         tags=["committees"])
 async def get_build_meeting(CommitteeSessionID: int):
     data = DB.get_single_data('committees_build_build_meetings',
                               'CommitteeSessionID', CommitteeSessionID)
@@ -907,10 +890,10 @@ async def get_build_meeting(CommitteeSessionID: int):
 
 # Route for list people_committees_joined_meetings table
 @app.get("/people_committees_joined_meetings/list",
-         status_code=200, tags=["people_committees_joined_meetings"])
+         status_code=200, tags=["people"])
 async def get_people_committees_joined_meetings_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     CommitteeSessionID: Optional[int] = None,
@@ -959,7 +942,7 @@ async def get_people_committees_joined_meetings_list(
 
 # Route for single "people_committees_joined_meetings" table
 @app.get('/people_committees_joined_meetings/{CommitteeSessionID}',
-         tags=["people_committees_joined_meetings"])
+         tags=["people"])
 async def get_people_committees_joined_meeting(CommitteeSessionID: int):
     data = DB.get_single_data('people_committees_joined_meetings',
                               'CommitteeSessionID', CommitteeSessionID)
@@ -968,10 +951,10 @@ async def get_people_committees_joined_meeting(CommitteeSessionID: int):
 
 # Route for list bills_kns_billhistoryinitiator table
 @app.get("/bills_kns_billhistoryinitiator/list",
-         status_code=200, tags=["bills_kns_billhistoryinitiator"])
+         status_code=200, tags=["bills"])
 async def get_billhistoryinitiator_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     BillID: Optional[int] = None,
@@ -1002,7 +985,7 @@ async def get_billhistoryinitiator_list(
 
 # Route for single "bills_kns_billhistoryinitiator" table
 @app.get('/bills_kns_billhistoryinitiator/{BillHistoryInitiatorID}',
-         tags=["bills_kns_billhistoryinitiator"])
+         tags=["bills"])
 async def get_bill_history_initiator(BillHistoryInitiatorID: int):
     data = DB.get_single_data('bills_kns_billhistoryinitiator',
                               'BillHistoryInitiatorID',
@@ -1013,10 +996,10 @@ async def get_bill_history_initiator(BillHistoryInitiatorID: int):
 # Route for list committees_document_background_material_titles table
 @app.get("/committees_document_background_material_titles/list",
          status_code=200,
-         tags=["committees_document_background_material_titles"])
+         tags=["committees"])
 async def get_document_background_material_titles_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     CommitteeSessionID: Optional[int] = None,
@@ -1044,7 +1027,7 @@ async def get_document_background_material_titles_list(
 # Route for single "committees_document_background_material_titles" table
 @app.get(
     '/committees_document_background_material_titles/{DocumentCommitteeSessionID}',
-    tags=["committees_document_background_material_titles"]
+    tags=["committees"]
 )
 async def get_background_material_title(DocumentCommitteeSessionID: int):
     data = DB.get_single_data('committees_document_background_material_titles',
@@ -1056,10 +1039,10 @@ async def get_background_material_title(DocumentCommitteeSessionID: int):
 # Route for list people_committees_meeting_attendees table
 @app.get("/people_committees_meeting_attendees/list",
          status_code=200,
-         tags=["people_committees_meeting_attendees"])
+         tags=["people"])
 async def get_committees_meeting_attendees_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     Number: Optional[int] = None,
@@ -1152,7 +1135,7 @@ async def get_committees_meeting_attendees_list(
 
 # Route for single "people_committees_meeting_attendees" table
 @app.get('/people_committees_meeting_attendees/{CommitteeSessionID}',
-         tags=["people_committees_meeting_attendees"])
+         tags=["people"])
 async def get_meeting_attendees(CommitteeSessionID: int):
     data = DB.get_single_data('people_committees_meeting_attendees',
                               'CommitteeSessionID',
@@ -1162,10 +1145,10 @@ async def get_meeting_attendees(CommitteeSessionID: int):
 
 # Route for list knesset_kns_knessetdates table
 @app.get("/knesset_kns_knessetdates/list",
-         status_code=200, tags=["knesset_kns_knessetdates"])
+         status_code=200, tags=["knesset"])
 async def get_knessetdates_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     KnessetNum: Optional[int] = None,
@@ -1196,7 +1179,7 @@ async def get_knessetdates_list(
 
 # Route for single "knesset_kns_knessetdates" table
 @app.get('/knesset_kns_knessetdates/{KnessetDateID}',
-         tags=["knesset_kns_knessetdates"])
+         tags=["knesset"])
 async def get_knesset_dates(KnessetDateID: int):
     data = DB.get_single_data('knesset_kns_knessetdates',
                               'KnessetDateID', KnessetDateID)
@@ -1205,10 +1188,10 @@ async def get_knesset_dates(KnessetDateID: int):
 
 # Route for list votes_view_vote_mk_individual table
 @app.get("/votes_view_vote_mk_individual/list",
-         status_code=200, tags=["votes_view_vote_mk_individual"])
+         status_code=200, tags=["votes"])
 async def get_vote_mk_individual_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     mk_individual_id: Optional[int] = None,
@@ -1236,7 +1219,7 @@ async def get_vote_mk_individual_list(
 
 # Route for single "votes_view_vote_mk_individual" table
 @app.get('/votes_view_vote_mk_individual/{vip_id}',
-         tags=["votes_view_vote_mk_individual"])
+         tags=["votes"])
 async def get_vote_mk_individual(vip_id: int):
     data = DB.get_single_data('votes_view_vote_mk_individual',
                               'vip_id', vip_id)
@@ -1245,10 +1228,10 @@ async def get_vote_mk_individual(vip_id: int):
 
 # Route for list bills_kns_bill table
 @app.get("/bills_kns_bill/list", status_code=200,
-         tags=["bills_kns_bill"])
+         tags=["bills"])
 async def get_bill_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     KnessetNum: Optional[int] = None,
@@ -1289,7 +1272,7 @@ async def get_bill_list(
 
 
 # Route for single "bills_kns_bill" table
-@app.get('/bills_kns_bill/{BillID}', tags=["bills_kns_bill"])
+@app.get('/bills_kns_bill/{BillID}', tags=["bills"])
 async def get_bill(BillID: int):
     data = DB.get_single_data('bills_kns_bill', 'BillID', BillID)
     return {'success': True, 'data': data}
@@ -1297,10 +1280,10 @@ async def get_bill(BillID: int):
 
 # Route for list members_kns_person__airflow table
 @app.get("/members_kns_person__airflow/list", status_code=200,
-         tags=["members_kns_person__airflow"])
+         tags=["members"])
 async def get_person__airflow_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     LastName: Optional[str] = None,
@@ -1330,7 +1313,7 @@ async def get_person__airflow_list(
 
 # Route for single "members_kns_person__airflow" table
 @app.get('/members_kns_person__airflow/{PersonID}',
-         tags=["members_kns_person__airflow"])
+         tags=["members"])
 async def get_person_airflow(PersonID: int):
     data = DB.get_single_data('members_kns_person__airflow',
                               'PersonID', PersonID)
@@ -1339,10 +1322,10 @@ async def get_person_airflow(PersonID: int):
 
 # Route for committees_joined_meetings table
 @app.get("/committees_joined_meetings/list", status_code=200,
-         tags=["committees_joined_meetings"])
+         tags=["committees"])
 async def get_joined_meetings_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     Number: Optional[int] = None,
@@ -1386,7 +1369,7 @@ async def get_joined_meetings_list(
 
 # Route for single "committees_joined_meetings" table
 @app.get('/committees_joined_meetings/{CommitteeSessionID}',
-         tags=["committees_joined_meetings"])
+         tags=["committees"])
 async def get_joined_meeting(CommitteeSessionID: int):
     data = DB.get_single_data('committees_joined_meetings',
                               'CommitteeSessionID',
@@ -1397,10 +1380,10 @@ async def get_joined_meeting(CommitteeSessionID: int):
 # Route for list people_mk_party_discipline_stats table
 @app.get("/people_mk_party_discipline_stats/list",
          status_code=200,
-         tags=["people_mk_party_discipline_stats"])
+         tags=["people"])
 async def get_mk_party_discipline_stats_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     knesset: Optional[int] = None,
@@ -1434,10 +1417,10 @@ async def get_mk_party_discipline_stats_list(
 
 # Route for list knesset_kns_status table
 @app.get("/knesset_kns_status/list", status_code=200,
-         tags=["knesset_kns_status"])
+         tags=["knesset"])
 async def get_knesset_status_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     Desc: Optional[str] = None,
@@ -1466,7 +1449,7 @@ async def get_knesset_status_list(
 
 # Route for single "knesset_kns_status" table
 @app.get('/knesset_kns_status/{StatusID}',
-         tags=["knesset_kns_status"])
+         tags=["knesset"])
 async def get_status(StatusID: int):
     data = DB.get_single_data('knesset_kns_status',
                               'StatusID', StatusID)
@@ -1475,10 +1458,10 @@ async def get_status(StatusID: int):
 
 # Route for list votes_vote_rslts_kmmbr_shadow table
 @app.get("/votes_vote_rslts_kmmbr_shadow/list", status_code=200,
-         tags=["votes_vote_rslts_kmmbr_shadow"])
+         tags=["votes"])
 async def get_vote_rslts_kmmbr_shadow_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     vote_id: Optional[int] = None,
@@ -1512,10 +1495,10 @@ async def get_vote_rslts_kmmbr_shadow_list(
 # Route for list people_committees_meeting_attendees_mks_full_stats table
 @app.get("/people_committees_meeting_attendees_mks_full_stats/list",
          status_code=200,
-         tags=["people_committees_meeting_attendees_mks_full_stats"])
+         tags=["people"])
 async def get_attendees_mks_full_stats_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     knesset: Optional[int] = None,
@@ -1551,10 +1534,10 @@ async def get_attendees_mks_full_stats_list(
 # Route for list people_committees_meeting_speaker_stats table
 @app.get("/people_committees_meeting_speaker_stats/list",
          status_code=200,
-         tags=["people_committees_meeting_speaker_stats"])
+         tags=["people"])
 async def get_meeting_speaker_stats_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     CommitteeSessionID: Optional[int] = None,
@@ -1587,10 +1570,10 @@ async def get_meeting_speaker_stats_list(
 
 # Route for list committees_kns_cmtsitecode table
 @app.get("/committees_kns_cmtsitecode/list",
-         status_code=200, tags=["committees_kns_cmtsitecode"])
+         status_code=200, tags=["committees"])
 async def get_cmtsitecode_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     KnsID: Optional[int] = None,
@@ -1615,7 +1598,7 @@ async def get_cmtsitecode_list(
 
 # Route for single "committees_kns_cmtsitecode" table
 @app.get('/committees_kns_cmtsitecode/{CmtSiteCode}',
-         tags=["committees_kns_cmtsitecode"])
+         tags=["committees"])
 async def get_cmt_site_code(CmtSiteCode: int):
     data = DB.get_single_data('committees_kns_cmtsitecode',
                               'CmtSiteCode', CmtSiteCode)
@@ -1624,10 +1607,10 @@ async def get_cmt_site_code(CmtSiteCode: int):
 
 # Route for list laws_kns_document_law table
 @app.get("/laws_kns_document_law/list", status_code=200,
-         tags=["laws_kns_document_law"])
+         tags=["laws"])
 async def get_document_law_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     LawID: Optional[int] = None,
@@ -1657,7 +1640,7 @@ async def get_document_law_list(
 
 # Route for "laws_kns_document_law" table
 @app.get('/laws_kns_document_law/{DocumentLawID}',
-         tags=["laws_kns_document_law"])
+         tags=["laws"])
 async def get_document_law(DocumentLawID: int):
     data = DB.get_single_data('laws_kns_document_law',
                               'DocumentLawID', DocumentLawID)
@@ -1666,10 +1649,10 @@ async def get_document_law(DocumentLawID: int):
 
 # Route for list committees_meeting_protocols_parts table
 @app.get("/committees_meeting_protocols_parts/list",
-         status_code=200, tags=["committees_meeting_protocols_parts"])
+         status_code=200, tags=["committees"])
 async def get_meeting_protocols_parts_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     CommitteeSessionID: Optional[int] = None,
@@ -1705,7 +1688,7 @@ async def get_meeting_protocols_parts_list(
 
 # Route for single "committees_meeting_protocols_parts" table
 @app.get('/committees_meeting_protocols_parts/{DocumentCommitteeSessionID}',
-         tags=["committees_meeting_protocols_parts"])
+         tags=["committees"])
 async def get_meeting_protocols_parts(DocumentCommitteeSessionID: int):
     data = DB.get_single_data('committees_meeting_protocols_parts',
                               'DocumentCommitteeSessionID',
@@ -1716,10 +1699,10 @@ async def get_meeting_protocols_parts(DocumentCommitteeSessionID: int):
 # Route for list votes_view_vote_rslts_hdr_approved_extra table
 @app.get("/votes_view_vote_rslts_hdr_approved_extra/list",
          status_code=200,
-         tags=["votes_view_vote_rslts_hdr_approved_extra"])
+         tags=["votes"])
 async def get_vote_rslts_hdr_approved_extra_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     knesset_num: Optional[int] = None,
@@ -1775,7 +1758,7 @@ async def get_vote_rslts_hdr_approved_extra_list(
 
 # Route for "votes_view_vote_rslts_hdr_approved_extra" table
 @app.get('/votes_view_vote_rslts_hdr_approved_extra/{id}',
-         tags=["votes_view_vote_rslts_hdr_approved_extra"])
+         tags=["votes"])
 async def get_vote_rslts_hdr_approved_extra(id: int):
     data = DB.get_single_data('votes_view_vote_rslts_hdr_approved_extra',
                               'id', id)
@@ -1785,10 +1768,10 @@ async def get_vote_rslts_hdr_approved_extra(id: int):
 # Route for list committees_build_rendered_meetings_stats table
 @app.get("/committees_build_rendered_meetings_stats/list",
          status_code=200,
-         tags=["committees_build_rendered_meetings_stats"])
+         tags=["committees"])
 async def get_build_rendered_meetings_stats_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     num_speech_parts: Optional[int] = None
@@ -1812,7 +1795,7 @@ async def get_build_rendered_meetings_stats_list(
 
 # Route for single "committees_build_rendered_meetings_stats" table
 @app.get('/committees_build_rendered_meetings_stats/{CommitteeSessionID}',
-         tags=["committees_build_rendered_meetings_stats"])
+         tags=["committees"])
 async def get_rendered_meetings_stats(CommitteeSessionID: int):
     data = DB.get_single_data('committees_build_rendered_meetings_stats',
                               'CommitteeSessionID',
@@ -1822,10 +1805,10 @@ async def get_rendered_meetings_stats(CommitteeSessionID: int):
 
 # Route for list plenum_kns_plmsessionitem table
 @app.get("/plenum_kns_plmsessionitem/list", status_code=200,
-         tags=["plenum_kns_plmsessionitem"])
+         tags=["plenum"])
 async def get_plmsessionitem_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     ItemID: Optional[int] = None,
@@ -1857,7 +1840,7 @@ async def get_plmsessionitem_list(
 
 # Route for single "plenum_kns_plmsessionitem" table
 @app.get('/plenum_kns_plmsessionitem/{plmPlenumSessionID}',
-         tags=["plenum_kns_plmsessionitem"])
+         tags=["plenum"])
 async def get_plmsessionitem(plmPlenumSessionID: int):
     data = DB.get_single_data('plenum_kns_plmsessionitem',
                               'plmPlenumSessionID',
@@ -1867,10 +1850,10 @@ async def get_plmsessionitem(plmPlenumSessionID: int):
 
 # Route for list lobbyists_v_lobbyist_clients table
 @app.get("/lobbyists_v_lobbyist_clients/list", status_code=200,
-         tags=["lobbyists_v_lobbyist_clients"])
+         tags=["lobbyists"])
 async def get_lobbyist_clients_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     LobbyistID: Optional[int] = None,
@@ -1898,10 +1881,10 @@ async def get_lobbyist_clients_list(
 # Route for list laws_kns_israel_law table
 @app.get("/laws_kns_israel_law/list",
          status_code=200,
-         tags=["laws_kns_israel_law"])
+         tags=["laws"])
 async def get_israel_law_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     KnessetNum: Optional[int] = None,
@@ -1938,7 +1921,7 @@ async def get_israel_law_list(
 
 # Route for single "laws_kns_israel_law" table
 @app.get('/laws_kns_israel_law/{IsraelLawID}',
-         tags=["laws_kns_israel_law"])
+         tags=["laws"])
 async def get_israel_law(IsraelLawID: int):
     data = DB.get_single_data('laws_kns_israel_law',
                               'IsraelLawID', IsraelLawID)
@@ -1947,10 +1930,10 @@ async def get_israel_law(IsraelLawID: int):
 
 # Route for votes_vote_result_type table
 @app.get("/votes_vote_result_type/list",
-         status_code=200, tags=["votes_vote_result_type"])
+         status_code=200, tags=["votes"])
 async def get_vote_result_type_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     result_type_name: Optional[str] = None
@@ -1974,7 +1957,7 @@ async def get_vote_result_type_list(
 
 # Route for single "votes_vote_result_type" table
 @app.get('/votes_vote_result_type/{result_type_id}',
-         tags=["votes_vote_result_type"])
+         tags=["votes"])
 async def get_vote_result_type(result_type_id: int):
     data = DB.get_single_data('votes_vote_result_type',
                               'result_type_id', result_type_id)
@@ -1984,10 +1967,10 @@ async def get_vote_result_type(result_type_id: int):
 # Route for list committees_kns_documentcommitteesession table
 @app.get("/committees_kns_documentcommitteesession/list",
          status_code=200,
-         tags=["committees_kns_documentcommitteesession"])
+         tags=["committees"])
 async def get_documentcommitteesession_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     DocumentCommitteeSessionID: Optional[int] = None,
@@ -2033,10 +2016,10 @@ async def get_documentcommitteesession_list(
 # Route for lobbyists_v_lobbyist table
 @app.get("/lobbyists_v_lobbyist/list",
          status_code=200,
-         tags=["lobbyists_v_lobbyist"])
+         tags=["lobbyists"])
 async def get_lobbyist_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     IdentityNumber: Optional[str] = None,
@@ -2069,7 +2052,7 @@ async def get_lobbyist_list(
 
 # Route for single "lobbyists_v_lobbyist" table
 @app.get('/lobbyists_v_lobbyist/{LobbyistID}',
-         tags=["lobbyists_v_lobbyist"])
+         tags=["lobbyists"])
 async def get_lobbyist(LobbyistID: int):
     data = DB.get_single_data('lobbyists_v_lobbyist',
                               'LobbyistID', LobbyistID)
@@ -2079,10 +2062,10 @@ async def get_lobbyist(LobbyistID: int):
 # Route for list laws_kns_israel_law_binding table
 @app.get("/laws_kns_israel_law_binding/list",
          status_code=200,
-         tags=["laws_kns_israel_law_binding"])
+         tags=["laws"])
 async def get_israel_law_binding_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     IsraelLawID: Optional[int] = None,
@@ -2110,7 +2093,7 @@ async def get_israel_law_binding_list(
 
 # Route for single "laws_kns_israel_law_binding" table
 @app.get('/laws_kns_israel_law_binding/{IsraelLawBinding}',
-         tags=["laws_kns_israel_law_binding"])
+         tags=["laws"])
 async def get_israel_law_binding(IsraelLawBinding: int):
     data = DB.get_single_data('laws_kns_israel_law_binding',
                               'IsraelLawBinding', IsraelLawBinding)
@@ -2120,10 +2103,10 @@ async def get_israel_law_binding(IsraelLawBinding: int):
 # Route for list people_plenum_session_voters table
 @app.get("/people_plenum_session_voters/list",
          status_code=200,
-         tags=["people_plenum_session_voters"])
+         tags=["people"])
 async def get_plenum_session_voters_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     Number: Optional[int] = None,
@@ -2159,7 +2142,7 @@ async def get_plenum_session_voters_list(
 
 # Route for single "people_plenum_session_voters" table
 @app.get('/people_plenum_session_voters/{PlenumSessionID}',
-         tags=["people_plenum_session_voters"])
+         tags=["people"])
 async def get_plenum_session_voters(PlenumSessionID: int):
     data = DB.get_single_data('people_plenum_session_voters',
                               'PlenumSessionID', PlenumSessionID)
@@ -2169,10 +2152,10 @@ async def get_plenum_session_voters(PlenumSessionID: int):
 # Route for list people_mk_voted_against_majority table
 @app.get("/people_mk_voted_against_majority/list",
          status_code=200,
-         tags=["people_mk_voted_against_majority"])
+         tags=["people"])
 async def get_mk_voted_against_majority_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     vote_id: Optional[int] = None,
@@ -2206,10 +2189,10 @@ async def get_mk_voted_against_majority_list(
 # Route for list committees_kns_cmtsessionitem table
 @app.get("/committees_kns_cmtsessionitem/list",
          status_code=200,
-         tags=["committees_kns_cmtsessionitem"])
+         tags=["committees"])
 async def get_cmtsessionitem_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     ItemID: Optional[int] = None,
@@ -2239,7 +2222,7 @@ async def get_cmtsessionitem_list(
 
 # Route for "committees_kns_cmtsessionitem" table
 @app.get('/committees_kns_cmtsessionitem/{CmtSessionItemID}',
-         tags=["committees_kns_cmtsessionitem"])
+         tags=["committees"])
 async def get_cmtsessionitem(CmtSessionItemID: int):
     data = DB.get_single_data('committees_kns_cmtsessionitem',
                               'CmtSessionItemID',
@@ -2250,10 +2233,10 @@ async def get_cmtsessionitem(CmtSessionItemID: int):
 # Route for list laws_kns_israel_law_ministry table
 @app.get("/laws_kns_israel_law_ministry/list",
          status_code=200,
-         tags=["laws_kns_israel_law_ministry"])
+         tags=["laws"])
 async def get_israel_law_ministry_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     IsraelLawID: Optional[int] = None,
@@ -2279,7 +2262,7 @@ async def get_israel_law_ministry_list(
 
 # Route for single "laws_kns_israel_law_ministry" table
 @app.get('/laws_kns_israel_law_ministry/{LawMinistryID}',
-         tags=["laws_kns_israel_law_ministry"])
+         tags=["laws"])
 async def get_israel_law_ministry(LawMinistryID: int):
     data = DB.get_single_data('laws_kns_israel_law_ministry',
                               'LawMinistryID', LawMinistryID)
@@ -2289,10 +2272,10 @@ async def get_israel_law_ministry(LawMinistryID: int):
 # Route for list people_mk_party_discipline_knesset_20 table
 @app.get("/people_mk_party_discipline_knesset_20/list",
          status_code=200,
-         tags=["people_mk_party_discipline_knesset_20"])
+         tags=["people"])
 async def get_mk_party_discipline_knesset_20_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     vote_id: Optional[int] = None,
@@ -2328,10 +2311,10 @@ async def get_mk_party_discipline_knesset_20_list(
 # Route for list committees_kns_committeesession table
 @app.get("/committees_kns_committeesession/list",
          status_code=200,
-         tags=["committees_kns_committeesession"])
+         tags=["committees"])
 async def get_committeesession_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     CommitteeSessionID: Optional[int] = None,
@@ -2389,10 +2372,10 @@ async def get_committeesession_list(
 
 # Route for list members_kns_mksitecode table
 @app.get("/members_kns_mksitecode/list",
-         status_code=200, tags=["members_kns_mksitecode"])
+         status_code=200, tags=["members"])
 async def get_mksitecode_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     KnsID: Optional[int] = None,
@@ -2417,7 +2400,7 @@ async def get_mksitecode_list(
 
 # Route for single "members_kns_mksitecode" table
 @app.get('/members_kns_mksitecode/{MKSiteCode}',
-         tags=["members_kns_mksitecode"])
+         tags=["members"])
 async def get_mksitecode(MKSiteCode: int):
     data = DB.get_single_data('members_kns_mksitecode',
                               'MKSiteCode', MKSiteCode)
@@ -2427,10 +2410,10 @@ async def get_mksitecode(MKSiteCode: int):
 # Route for list people_committees_meeting_attendees_mks_stats table
 @app.get("/people_committees_meeting_attendees_mks_stats/list",
          status_code=200,
-         tags=["people_committees_meeting_attendees_mks_stats"])
+         tags=["people"])
 async def get_committee_attendees_mks_stats_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     knesset_num: Optional[int] = None,
@@ -2462,10 +2445,10 @@ async def get_committee_attendees_mks_stats_list(
 
 
 # Route for laws_kns_law table
-@app.get("/laws_kns_law/list", status_code=200, tags=["laws_kns_law"])
+@app.get("/laws_kns_law/list", status_code=200, tags=["laws"])
 async def get_law_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     TypeID: Optional[int] = None,
@@ -2499,7 +2482,7 @@ async def get_law_list(
 
 
 # Route for single "laws_kns_law" table
-@app.get('/laws_kns_law/{LawID}', tags=["laws_kns_law"])
+@app.get('/laws_kns_law/{LawID}', tags=["laws"])
 async def get_law(LawID: int):
     data = DB.get_single_data('laws_kns_law', 'LawID', LawID)
     return {'success': True, 'data': data}
@@ -2508,10 +2491,10 @@ async def get_law(LawID: int):
 # Route for list committees_document_committee_sessions_for_parsing table
 @app.get("/committees_document_committee_sessions_for_parsing/list",
          status_code=200,
-         tags=["committees_document_committee_sessions_for_parsing"])
+         tags=["committees"])
 async def get_committee_sessions_for_parsing_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     CommitteeSessionID: Optional[int] = None,
@@ -2542,7 +2525,7 @@ async def get_committee_sessions_for_parsing_list(
 
 # Route for single "committees_document_committee_sessions_for_parsing" table
 @app.get('/committees_document_committee_sessions_for_parsing/{DocumentCommitteeSessionID}',
-         tags=["committees_document_committee_sessions_for_parsing"])
+         tags=["committees"])
 async def get_document_committee_sessions_for_parsing(DocumentCommitteeSessionID: int):
     data = DB.get_single_data
     (
@@ -2556,10 +2539,10 @@ async def get_document_committee_sessions_for_parsing(DocumentCommitteeSessionID
 # Route for people_committees_meeting_attendees_mks_stats_errors table
 @app.get("/people_committees_meeting_attendees_mks_stats_errors/list",
          status_code=200,
-         tags=["people_committees_meeting_attendees_mks_stats_errors"])
+         tags=["people"])
 async def get_committee_attendees_mks_stats_errors_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None
 ):
@@ -2585,10 +2568,10 @@ async def get_committee_attendees_mks_stats_errors_list(
 # Route for list committees_download_document_committee_session table
 @app.get("/committees_download_document_committee_session/list",
          status_code=200,
-         tags=["committees_download_document_committee_session"])
+         tags=["committees"])
 async def get_download_document_committee_session_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     CommitteeSessionID: Optional[int] = None,
@@ -2623,7 +2606,7 @@ async def get_download_document_committee_session_list(
 
 # Route for single "committees_download_document_committee_session" table
 @app.get('/committees_download_document_committee_session/{DocumentCommitteeSessionID}',
-         tags=["committees_download_document_committee_session"])
+         tags=["committees"])
 async def get_download_document_committee_session(DocumentCommitteeSessionID: int):
     data = DB.get_single_data('committees_download_document_committee_session',
                               'DocumentCommitteeSessionID',
@@ -2634,10 +2617,10 @@ async def get_download_document_committee_session(DocumentCommitteeSessionID: in
 # Route for list laws_kns_israel_law_name table
 @app.get("/laws_kns_israel_law_name/list",
          status_code=200,
-         tags=["laws_kns_israel_law_name"])
+         tags=["laws"])
 async def get_israel_law_name_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     IsraelLawID: Optional[int] = None,
@@ -2665,7 +2648,7 @@ async def get_israel_law_name_list(
 
 # Route for single "laws_kns_israel_law_name" table
 @app.get('/laws_kns_israel_law_name/{IsraelLawNameID}',
-         tags=["laws_kns_israel_law_name"])
+         tags=["laws"])
 async def get_israel_law_name(IsraelLawNameID: int):
     data = DB.get_single_data('laws_kns_israel_law_name',
                               'IsraelLawNameID', IsraelLawNameID)
@@ -2675,10 +2658,10 @@ async def get_israel_law_name(IsraelLawNameID: int):
 # Route for list people_members_joined_mks table
 @app.get("/people_members_joined_mks/list",
          status_code=200,
-         tags=["people_members_joined_mks"])
+         tags=["people"])
 async def get_joined_mks_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     mk_status_id: Optional[int] = None,
@@ -2755,7 +2738,7 @@ async def get_joined_mks_list(
 
 # Route for single "people_members_joined_mks" table
 @app.get('/people_members_joined_mks/{mk_individual_id}',
-         tags=["people_members_joined_mks"])
+         tags=["people"])
 async def get_members_joined_mks(mk_individual_id: int):
     data = DB.get_single_data('people_members_joined_mks',
                               'mk_individual_id', mk_individual_id)
@@ -2765,10 +2748,10 @@ async def get_members_joined_mks(mk_individual_id: int):
 # Route for list laws_kns_law_binding table
 @app.get("/laws_kns_law_binding/list",
          status_code=200,
-         tags=["laws_kns_law_binding"])
+         tags=["laws"])
 async def get_law_binding_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     LawID: Optional[int] = None,
@@ -2801,7 +2784,7 @@ async def get_law_binding_list(
 
 
 # Route for single "laws_kns_law_binding" table
-@app.get('/laws_kns_law_binding/{LawBindingID}', tags=["laws_kns_law_binding"])
+@app.get('/laws_kns_law_binding/{LawBindingID}', tags=["laws"])
 async def get_law_binding(LawBindingID: int):
     data = DB.get_single_data('laws_kns_law_binding',
                               'LawBindingID', LawBindingID)
@@ -2811,10 +2794,10 @@ async def get_law_binding(LawBindingID: int):
 # Route for list knesset_kns_itemtype table
 @app.get("/knesset_kns_itemtype/list",
          status_code=200,
-         tags=["knesset_kns_itemtype"])
+         tags=["knesset"])
 async def get_knesset_itemtype_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     Desc: Optional[str] = None,
@@ -2838,7 +2821,7 @@ async def get_knesset_itemtype_list(
 
 
 # Route for single "knesset_kns_itemtype" table
-@app.get('/knesset_kns_itemtype/{ItemTypeID}', tags=["knesset_kns_itemtype"])
+@app.get('/knesset_kns_itemtype/{ItemTypeID}', tags=["knesset"])
 async def get_itemtype(ItemTypeID: int):
     data = DB.get_single_data('knesset_kns_itemtype', 'ItemTypeID', ItemTypeID)
     return {'success': True, 'data': data}
@@ -2847,10 +2830,10 @@ async def get_itemtype(ItemTypeID: int):
 # Route for list committees_meeting_protocols_text table
 @app.get("/committees_meeting_protocols_text/list",
          status_code=200,
-         tags=["committees_meeting_protocols_text"])
+         tags=["committees"])
 async def get_committee_meeting_protocols_text_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     CommitteeSessionID: Optional[int] = None,
@@ -2886,7 +2869,7 @@ async def get_committee_meeting_protocols_text_list(
 
 # Route for single "committees_meeting_protocols_text" table
 @app.get('/committees_meeting_protocols_text/{DocumentCommitteeSessionID}',
-         tags=["committees_meeting_protocols_text"])
+         tags=["committees"])
 async def get_meeting_protocols_text(DocumentCommitteeSessionID: int):
     data = DB.get_single_data('committees_meeting_protocols_text',
                               'DocumentCommitteeSessionID',
@@ -2897,10 +2880,10 @@ async def get_meeting_protocols_text(DocumentCommitteeSessionID: int):
 # Route for list people_committees_meeting_attendees_mks table
 @app.get("/people_committees_meeting_attendees_mks/list",
          status_code=200,
-         tags=["people_committees_meeting_attendees_mks"])
+         tags=["people"])
 async def get_committee_attendees_mks_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     CommitteeSessionID: Optional[int] = None,
@@ -2970,10 +2953,10 @@ async def get_committee_attendees_mks_list(
 # Route for list members_kns_person table
 @app.get("/members_kns_person/list",
          status_code=200,
-         tags=["members_kns_person"])
+         tags=["members"])
 async def get_person_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     PersonID: Optional[int] = None,
@@ -3003,7 +2986,7 @@ async def get_person_list(
 
 
 # Route for single "members_kns_person" table
-@app.get('/members_kns_person/{PersonID}', tags=["members_kns_person"])
+@app.get('/members_kns_person/{PersonID}', tags=["members"])
 async def get_person(PersonID: int):
     data = DB.get_single_data('members_kns_person', 'PersonID', PersonID)
     return {'success': True, 'data': data}
@@ -3012,10 +2995,10 @@ async def get_person(PersonID: int):
 # Route for list members_mk_individual table
 @app.get("/members_mk_individual/list",
          status_code=200,
-         tags=["members_mk_individual"])
+         tags=["members"])
 async def get_mk_individual_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     mk_status_id: Optional[int] = None,
@@ -3060,7 +3043,7 @@ async def get_mk_individual_list(
 
 # Route for single "members_mk_individual" table
 @app.get('/members_mk_individual/{mk_individual_id}',
-         tags=["members_mk_individual"])
+         tags=["members"])
 async def get_individual(mk_individual_id: int):
     data = DB.get_single_data('members_mk_individual',
                               'mk_individual_id', mk_individual_id)
@@ -3070,10 +3053,10 @@ async def get_individual(mk_individual_id: int):
 # Route for list members_factions table
 @app.get("/members_factions/list",
          status_code=200,
-         tags=["members_factions"])
+         tags=["members"])
 async def get_factions_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     name: Optional[str] = None,
@@ -3104,7 +3087,7 @@ async def get_factions_list(
 
 
 # Route for "members_factions" table
-@app.get('/members_factions/{id}', tags=["members_factions"])
+@app.get('/members_factions/{id}', tags=["members"])
 async def get_factions(id: int):
     data = DB.get_single_data('members_factions', 'id', id)
     return {'success': True, 'data': data}
@@ -3113,10 +3096,10 @@ async def get_factions(id: int):
 # Route for list laws_kns_israel_law_classification table
 @app.get("/laws_kns_israel_law_classification/list",
          status_code=200,
-         tags=["laws_kns_israel_law_classification"])
+         tags=["laws"])
 async def get_israel_law_classification_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     IsraelLawID: Optional[int] = None,
@@ -3143,7 +3126,7 @@ async def get_israel_law_classification_list(
 
 # Route for single "laws_kns_israel_law_classification" table
 @app.get('/laws_kns_israel_law_classification/{LawClassificiationID}',
-         tags=["laws_kns_israel_law_classification"])
+         tags=["laws"])
 async def get_israel_law_classification(LawClassificiationID: int):
     data = DB.get_single_data('laws_kns_israel_law_classification',
                               'LawClassificiationID',
@@ -3154,10 +3137,10 @@ async def get_israel_law_classification(LawClassificiationID: int):
 # Route for list members_mk_individual_names table
 @app.get("/members_mk_individual_names/list",
          status_code=200,
-         tags=["members_mk_individual_names"])
+         tags=["members"])
 async def get_mk_individual_names_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     names: Optional[str] = None,
@@ -3187,7 +3170,7 @@ async def get_mk_individual_names_list(
 
 # Route for single "members_mk_individual_names" table
 @app.get('/members_mk_individual_names/{mk_individual_id}',
-         tags=["members_mk_individual_names"])
+         tags=["members"])
 async def get_individual_names(mk_individual_id: int):
     data = DB.get_single_data('members_mk_individual_names',
                               'mk_individual_id',
@@ -3198,10 +3181,10 @@ async def get_individual_names(mk_individual_id: int):
 # Route for list members_faction_memberships table
 @app.get("/members_faction_memberships/list",
          status_code=200,
-         tags=["members_faction_memberships"])
+         tags=["members"])
 async def get_members_faction_memberships_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     faction_id: Optional[int] = None,
@@ -3239,7 +3222,7 @@ async def get_members_faction_memberships_list(
 
 # Route for single "members_faction_memberships" table
 @app.get('/members_faction_memberships/{faction_id}',
-         tags=["members_faction_memberships"])
+         tags=["members"])
 async def get_faction_memberships(faction_id: int):
     data = DB.get_single_data('members_faction_memberships',
                               'faction_id', faction_id)
@@ -3249,10 +3232,10 @@ async def get_faction_memberships(faction_id: int):
 # Route for list members_kns_persontoposition table
 @app.get("/members_kns_persontoposition/list",
          status_code=200,
-         tags=["members_kns_persontoposition"])
+         tags=["members"])
 async def get_person_to_position_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     PersonID: Optional[int] = None,
@@ -3290,7 +3273,7 @@ async def get_person_to_position_list(
 
 # Route for single "members_kns_persontoposition" table
 @app.get('/members_kns_persontoposition/{PersonToPositionID}',
-         tags=["members_kns_persontoposition"])
+         tags=["members"])
 async def get_persontoposition(PersonToPositionID: int):
     data = DB.get_single_data('members_kns_persontoposition',
                               'PersonToPositionID',
@@ -3301,10 +3284,10 @@ async def get_persontoposition(PersonToPositionID: int):
 # Route for list committees_kns_committee table
 @app.get("/committees_kns_committee/list",
          status_code=200,
-         tags=["committees_kns_committee"])
+         tags=["committees"])
 async def get_committee_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     Name: Optional[str] = None,
@@ -3342,7 +3325,7 @@ async def get_committee_list(
 
 # Route for single "committees_kns_committee" table
 @app.get('/committees_kns_committee/{CommitteeID}',
-         tags=["committees_kns_committee"])
+         tags=["committees"])
 async def get_single_data(CommitteeID: int):
     data = DB.get_single_data('committees_kns_committee',
                               'CommitteeID', CommitteeID)
@@ -3352,10 +3335,10 @@ async def get_single_data(CommitteeID: int):
 # Route for list members_mk_individual_factions table
 @app.get("/members_mk_individual_factions/list",
          status_code=200,
-         tags=["members_mk_individual_factions"])
+         tags=["members"])
 async def get_mk_individual_factions_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     mk_individual_id: Optional[int] = None,
@@ -3385,10 +3368,10 @@ async def get_mk_individual_factions_list(
 # Route for list members_kns_position table
 @app.get("/members_kns_position/list",
          status_code=200,
-         tags=["members_kns_position"])
+         tags=["members"])
 async def get_position_list(
     request: Request,
-    limit: int = 0,
+    limit: int = 100,
     offset: int = 0,
     order_by: Optional[str] = None,
     Description: Optional[str] = None,
@@ -3415,7 +3398,7 @@ async def get_position_list(
 
 # Route for single "members_kns_position" table
 @app.get('/members_kns_position/{PositionID}',
-         tags=["members_kns_position"])
+         tags=["members"])
 async def get_position(PositionID: int):
     data = DB.get_single_data('members_kns_position',
                               'PositionID', PositionID)
@@ -3425,12 +3408,58 @@ async def get_position(PositionID: int):
 # Aggragation
 @app.get('/minister_by_individual/{id}',
          status_code=200,
-         tags=['Special Aggravations'],
-         description="Get current minister")
+         tags=['Current ministers'],
+         description = """
+             Retrieve information about a minister based on their individual ID.
+             
+             This route returns data about a minister, including their personal details and legislative history.
+             The keys in the 'data' dictionary provide the following information:
+
+             - 'mk_individual_id': The unique identifier for the individual minister.
+             - 'FirstName': The first name of the minister.
+             - 'LastName': The last name of the minister.
+             - 'GenderDesc': The gender of the minister.
+             - 'Email': The email address of the minister.
+             - 'altnames': Alternate names or aliases of the minister.
+             - 'mk_individual_photo': URL to the minister's photo.
+             - 'faction_name': The political faction or party the minister belongs to.
+             - 'ministers': List of ministerial roles held by the individual.
+             - 'IsChairPerson': Indicates whether the minister is a chairperson (true or false).
+             - 'knessets': List of Knessets (Israeli parliaments) the minister has served in.
+             - 'committees': List of committees the minister has been associated with (may contain null values).
+             - 'year_total_hours_attended': A historical record of the minister's yearly hours attended in sessions.
+
+             You can use this data to gain insights into the minister's political career and activities.
+             """,
+         summary="Get current minister by individual identifier",
+         response_model=current_minister.MinisterResponseByIndividual)
 @app.get('/minister_by_personal/{id}',
          status_code=200,
-         tags=['Special Aggravations'],
-         description="Get current minister")
+         tags=['Current ministers'],
+         description = """
+             Retrieve information about a minister based on their personal ID.
+             
+             This route returns data about a minister, including their personal details and legislative history.
+             The keys in the 'data' dictionary provide the following information:
+
+             - 'personal_id': The unique identifier for the individual minister.
+             - 'FirstName': The first name of the minister.
+             - 'LastName': The last name of the minister.
+             - 'GenderDesc': The gender of the minister.
+             - 'Email': The email address of the minister.
+             - 'altnames': Alternate names or aliases of the minister.
+             - 'mk_individual_photo': URL to the minister's photo.
+             - 'faction_name': The political faction or party the minister belongs to.
+             - 'ministers': List of ministerial roles held by the individual.
+             - 'IsChairPerson': Indicates whether the minister is a chairperson (true or false).
+             - 'knessets': List of Knessets (Israeli parliaments) the minister has served in.
+             - 'committees': List of committees the minister has been associated with (may contain null values).
+             - 'year_total_hours_attended': A historical record of the minister's yearly hours attended in sessions.
+
+             You can use this data to gain insights into the minister's political career and activities.
+             """,
+         summary="Get current minister by personal identifier",
+         response_model=current_minister.MinisterResponseByPersonal)
 def get_minister(id: int, request: Request):
     request_path = request.scope['path']
     id_field = (
@@ -3450,12 +3479,54 @@ def get_minister(id: int, request: Request):
 
 @app.get('/member_kns_by_individual/{id}',
          status_code=200,
-         tags=['Special Aggravations'],
-         description="Get current member knesset")
+         tags=['Current knesset members'],
+         description="""
+             Retrieve detailed information about a specific Knesset member based on their unique individual ID.         
+
+             The 'data' dictionary provides the following information:
+
+             - 'mk_individual_id': The unique identifier for the individual Knesset member.
+             - 'FirstName': The first name of the Knesset member.
+             - 'LastName': The last name of the Knesset member.
+             - 'GenderDesc': The gender of the Knesset member.
+             - 'Email': The email address of the Knesset member.
+             - 'altnames': Alternate names or aliases of the Knesset member.
+             - 'mk_individual_photo': URL to the Knesset member's photo.
+             - 'faction_name': The political faction or party associated with the Knesset member.
+             - 'IsChairPerson': Indicates whether the Knesset member holds a chairperson position (true or false).
+             - 'knessets': List of Knessets (Israeli parliaments) the Knesset member has served in.
+             - 'committees': List of committees the Knesset member has been associated with, if any.
+             - 'year_total_hours_attended': A historical record of the Knesset member's yearly hours attended in sessions.
+
+             This information provides a comprehensive overview of the Knesset member's political career and activities.
+             """,
+         summary="Get current member knesset by individual identifier",
+         response_model=current_knesset_member.KnessetMemberResponseByIndividual)
 @app.get('/member_kns_by_personal/{id}',
          status_code=200,
-         tags=['Special Aggravations'],
-         description="Get current member knesset")
+         tags=['Current knesset members'],
+         description="""
+             Retrieve detailed information about a specific Knesset member based on their unique personal ID.         
+
+             The 'data' dictionary provides the following information:
+
+             - 'personal_id': The unique identifier for the individual Knesset member.
+             - 'FirstName': The first name of the Knesset member.
+             - 'LastName': The last name of the Knesset member.
+             - 'GenderDesc': The gender of the Knesset member.
+             - 'Email': The email address of the Knesset member.
+             - 'altnames': Alternate names or aliases of the Knesset member.
+             - 'mk_individual_photo': URL to the Knesset member's photo.
+             - 'faction_name': The political faction or party associated with the Knesset member.
+             - 'IsChairPerson': Indicates whether the Knesset member holds a chairperson position (true or false).
+             - 'knessets': List of Knessets (Israeli parliaments) the Knesset member has served in.
+             - 'committees': List of committees the Knesset member has been associated with, if any.
+             - 'year_total_hours_attended': A historical record of the Knesset member's yearly hours attended in sessions.
+
+             This information provides a comprehensive overview of the Knesset member's political career and activities.
+             """,
+         summary="Get current member knesset by personal identifier",
+         response_model=current_knesset_member.KnessetMemberResponseByPersonal)
 def get_member_kns(id: int, request: Request):
     request_path = request.scope['path']
     id_field = (

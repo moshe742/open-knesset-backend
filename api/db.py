@@ -43,32 +43,6 @@ def get_db_cursor():
         conn.close()
 
 
-# get table names from database
-def get_data_tables(limit, offset):
-    sql = (
-        f"SELECT table_name FROM information_schema.tables "
-        f"WHERE table_schema NOT IN ('pg_catalog', 'information_schema') "
-        f"LIMIT {limit} OFFSET {offset}"
-    )
-    print(sql)
-    with get_db_cursor() as cur:
-        cur.execute(sql)
-        data = cur.fetchall()
-    return data
-
-
-# get all columns from some table
-def get_data_columns(table_name):
-    sql = (
-        f"SELECT column_name FROM information_schema.columns"
-        f"WHERE table_name = '{table_name}'"
-    )
-    with get_db_cursor() as cur:
-        cur.execute(sql)
-        data = cur.fetchall()
-    return data
-
-
 # get single data from table
 def get_single_data(table, field, value):
     sql = f'select * from {table} where "{field}"={value}'
@@ -91,6 +65,10 @@ def get_fully_today_member(query, value):
 
 # get list data
 def get_data_list(start_query, limit, offset, order_by, qs):
+    if limit > 10000:
+        return ValueError("Can't use limit value above 10000")
+    elif limit < 1:
+        return ValueError("Can't use limit value under 1")
     result = create_query_list(start_query, limit, offset, order_by, qs)
     if isinstance(result, Exception):
         return result
