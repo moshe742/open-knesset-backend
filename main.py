@@ -1,10 +1,23 @@
-from fastapi import FastAPI, status, Request, Query
+from fastapi import FastAPI, HTTPException, status, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import List, Union ,Optional, List
 import models.current_minister as current_minister
 import models.current_knesset_member as current_knesset_member
+import models.user_friendly as user_friendly
+import models.knesset as knesset
+import models.plenum as plenum
+import models.lobbyists as lobbyists
+import models.laws as laws
+import models.members as members
+import models.people as people
+import models.bills as bills
+import models.committees as committees
+import models.votes as votes
+
+import errors
+
 import api.db as DB
 
 from api import queries as QUERY
@@ -25,9 +38,128 @@ app.add_middleware(
 )
 
     
-    
+# This endpoint, by default, returns details for current Knesset members only.
+# If the 'is_current' parameter is set to false, 
+# the endpoint returns details for all Knesset members across all time.
+@app.get("/members", status_code=200,
+         description = """By default returns only current knesset 
+             members and all their details for the current knesset
+             """,
+         summary="""Get Knesset members and all their details 
+             for some Knesset period""",
+         response_model=List[user_friendly.Member],
+         tags=['user friendly'])
+async def get_members_list(
+    knesset_num:Optional[int] = None,
+    is_current:Optional[bool] = True,
+):
+    query = QUERY.get_members()
+    data = DB.get_members(query,is_current,knesset_num)
+    if isinstance(data, Exception):
+        response_status = (status.HTTP_422_UNPROCESSABLE_ENTITY)
+        raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
+
+# This endpoint, returns info about presence of some Knesset member.
+@app.get("/members/{mk_individual_id}/presence", status_code=200,
+         summary="""Get info about presence of some Knesset member""",
+         response_model=List[user_friendly.MemberPresence],
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR
+         },
+         tags=['user friendly'])
+async def get_members_presence_list(
+    mk_individual_id:int 
+):
+    query = QUERY.get_members_presence(mk_individual_id)
+    data = DB.get_members_info(query,mk_individual_id)
+    if isinstance(data, Exception):
+        response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+        raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
+
+# This endpoint provides information about the attended committee 
+# meetings of a Knesset member
+@app.get("/members/{mk_individual_id}/attended_committee_meetings", 
+         status_code=200,
+         response_model=List[user_friendly.MemberAttendedCommitteeMeetings],
+         summary="""Get info about the attended committee meetings of 
+            a Knesset member""",
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR
+         },
+         tags=['user friendly'])
+async def get_members_attended_committee_meetings_list(
+    mk_individual_id:int 
+):
+    query = QUERY.get_members_attended_committee_meetings(mk_individual_id)
+    data = DB.get_members_info(query,mk_individual_id)
+    if isinstance(data, Exception):
+        response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+        raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
+
+# This endpoint provides information about 
+# the votes of a Knesset member
+@app.get("/members/{mk_individual_id}/votes", 
+         status_code=200,
+         summary="""Get info about the the votes of a Knesset member""",
+         response_model=List[user_friendly.MemberVote],
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR
+         },
+         tags=['user friendly'])
+async def get_members_votes_list(
+    mk_individual_id:int 
+):
+    query = QUERY.get_members_votes(mk_individual_id)
+    data = DB.get_members_info(query,mk_individual_id)
+    if isinstance(data, Exception):
+        response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+        raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+               
+
+# This endpoint provides information about 
+# the bills of a Knesset member
+@app.get("/members/{mk_individual_id}/bills", 
+         status_code=200,
+         summary="""Get info about the the bills of a Knesset member""",
+         response_model=List[user_friendly.MemberBill],
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR
+         },
+         tags=['user friendly'])
+async def get_members_votes_list(
+    mk_individual_id:int 
+):
+    query = QUERY.get_members_bills(mk_individual_id)
+    data = DB.get_members_info(query,mk_individual_id)
+    if isinstance(data, Exception):
+        response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+        raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+           
+
 # Route for list"bills_kns_billunion" table
-@app.get("/bills_kns_billunion/list", status_code=200,
+@app.get("/bills_kns_billunion/list", 
+         status_code=200,
+         response_model=List[bills.KnsBillunion],
+         responses={422: errors.LIMIT_ERROR},
          tags=['bills'])
 async def get_billunion_list(
     request: Request,
@@ -46,25 +178,37 @@ async def get_billunion_list(
     qs = '&'.join(qs_parts)
     query = "SELECT * FROM bills_kns_billunion"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
-    if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False,
-                            'data': str(data)}, status_code=response_status)
-    return {'success': True, 'data': data}
+    if isinstance(data, Exception): 
+        response_status = (status.HTTP_422_UNPROCESSABLE_ENTITY
+                           if isinstance(data,ValueError)
+                           else status.HTTP_404_NOT_FOUND)
+        raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "bills_kns_billunion" table
-@app.get('/bills_kns_billunion/{BillUnionID}', tags=['bills'])
+@app.get('/bills_kns_billunion/{BillUnionID}',
+         response_model=bills.KnsBillunion,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR
+         },
+         tags=['bills'],
+         )
 async def get_bill_union(BillUnionID: int):
     data = DB.get_single_data('bills_kns_billunion', 'BillUnionID',
                               BillUnionID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list knesset_kns_govministry table
 @app.get("/knesset_kns_govministry/list", status_code=200,
+         response_model=List[knesset.KnsGovministry],
+         responses={422: errors.LIMIT_ERROR},
          tags=["knesset"])
 async def get_govministry_list(
     request: Request,
@@ -84,25 +228,35 @@ async def get_govministry_list(
     query = "SELECT * FROM knesset_kns_govministry"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "knesset_kns_govministry" table
 @app.get('/knesset_kns_govministry/{GovMinistryID}',
+         response_model=knesset.KnsGovministry,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["knesset"])
 async def get_gov_ministry(GovMinistryID: int):
     data = DB.get_single_data('knesset_kns_govministry',
                               'GovMinistryID', GovMinistryID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list plenum_kns_documentplenumsession table
 @app.get("/plenum_kns_documentplenumsession/list", status_code=200,
+         response_model=List[plenum.DocumentPlenumSession],
+         responses={422: errors.LIMIT_ERROR},
          tags=["plenum"])
 async def get_documentplenumsession_list(
     request: Request,
@@ -126,26 +280,37 @@ async def get_documentplenumsession_list(
     query = "SELECT * FROM plenum_kns_documentplenumsession"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "plenum_kns_documentplenumsession" table
 @app.get('/plenum_kns_documentplenumsession/{DocumentPlenumSessionID}',
+         response_model=plenum.DocumentPlenumSession,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["plenum"])
 async def get_document_plenum_session(DocumentPlenumSessionID: int):
     data = DB.get_single_data('plenum_kns_documentplenumsession',
                               'DocumentPlenumSessionID',
                               DocumentPlenumSessionID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list members_mk_individual_faction_chairpersons table
-@app.get("/members_mk_individual_faction_chairpersons/list", status_code=200,
+@app.get("/members_mk_individual_faction_chairpersons/list", 
+         status_code=200,
+         response_model=List[members.FactionChairpersons],
+         responses={422: errors.LIMIT_ERROR},
          tags=["members"])
 async def get_faction_chairpersons_list(
     request: Request,
@@ -167,25 +332,36 @@ async def get_faction_chairpersons_list(
     query = "SELECT * FROM members_mk_individual_faction_chairpersons"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for "members_mk_individual_faction_chairpersons" table
 @app.get('/members_mk_individual_faction_chairpersons/{mk_individual_id}',
+         response_model=members.FactionChairpersons,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["members"])
 async def get_faction_chairperson(mk_individual_id: int):
     data = DB.get_single_data('members_mk_individual_faction_chairpersons',
                               'mk_individual_id', mk_individual_id)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list members_mk_individual_govministries table
-@app.get("/members_mk_individual_govministries/list", status_code=200,
+@app.get("/members_mk_individual_govministries/list", 
+         status_code=200,
+         response_model=List[members.Govministries],
+         responses={422: errors.LIMIT_ERROR},
          tags=["members"])
 async def get_individual_govministries_list(
     request: Request,
@@ -209,25 +385,36 @@ async def get_individual_govministries_list(
     query = "SELECT * FROM members_mk_individual_govministries"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "members_mk_individual_govministries" table
 @app.get('/members_mk_individual_govministries/{mk_individual_id}',
+         response_model=members.Govministries,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["members"])
 async def get_gov_ministry_member(mk_individual_id: int):
     data = DB.get_single_data('members_mk_individual_govministries',
                               'mk_individual_id', mk_individual_id)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list bills_kns_billsplit table
-@app.get("/bills_kns_billsplit/list", status_code=200,
+@app.get("/bills_kns_billsplit/list", 
+         status_code=200,
+         response_model=List[bills.KnsBillsplit],
+         responses={422: errors.LIMIT_ERROR},
          tags=["bills"])
 async def get_billsplit_list(
     request: Request,
@@ -248,25 +435,36 @@ async def get_billsplit_list(
     query = "SELECT * FROM bills_kns_billsplit"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for "bills_kns_billsplit" table
 @app.get('/bills_kns_billsplit/{BillSplitID}',
-         tags=["bills"])
+          response_model=bills.KnsBillsplit,
+          responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+          tags=["bills"])
 async def get_bill_split(BillSplitID: int):
     data = DB.get_single_data('bills_kns_billsplit', 'BillSplitID',
                               BillSplitID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list bills_kns_billinitiator table
-@app.get("/bills_kns_billinitiator/list", status_code=200,
+@app.get("/bills_kns_billinitiator/list", 
+         status_code=200,
+         response_model=List[bills.KnsBillInitiator],
+         responses={422: errors.LIMIT_ERROR},
          tags=["bills"])
 async def get_billinitiator_list(
     request: Request,
@@ -288,26 +486,37 @@ async def get_billinitiator_list(
     query = "SELECT * FROM bills_kns_billinitiator"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "bills_kns_billinitiator" table
 @app.get('/bills_kns_billinitiator/{BillInitiatorID}',
-         tags=["bills"])
+          response_model=bills.KnsBillInitiator,
+          responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+          tags=["bills"])
 async def get_bill_initiator(BillInitiatorID: int):
     data = DB.get_single_data('bills_kns_billinitiator',
                               'BillInitiatorID', BillInitiatorID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list people_plenum_session_voters_stats table
 @app.get("/people_plenum_session_voters_stats/list",
-         status_code=200, tags=["people"])
+         status_code=200,
+         responses={422: errors.LIMIT_ERROR},
+         response_model=List[people.PlenumSessionVotersStats],
+         tags=["people"])
 async def get_voters_stats_list(
     request: Request,
     limit: int = 100,
@@ -332,16 +541,19 @@ async def get_voters_stats_list(
     query = "SELECT * FROM people_plenum_session_voters_stats"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list bills_kns_billname table
-@app.get("/bills_kns_billname/list", status_code=200,
+@app.get("/bills_kns_billname/list", 
+         status_code=200,
+         response_model=List[bills.KnsBillName],
+         responses={422: errors.LIMIT_ERROR},
          tags=["bills"])
 async def get_billname_list(
     request: Request,
@@ -363,16 +575,19 @@ async def get_billname_list(
     query = "SELECT * FROM bills_kns_billname"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list members_mk_individual_committees table
-@app.get("/members_mk_individual_committees/list", status_code=200,
+@app.get("/members_mk_individual_committees/list", 
+         status_code=200,
+         response_model=List[members.Committees],
+         responses={422: errors.LIMIT_ERROR},
          tags=["members"])
 async def get_individual_committees_list(
     request: Request,
@@ -397,16 +612,19 @@ async def get_individual_committees_list(
     query = "SELECT * FROM members_mk_individual_committees"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list votes_view_vote_rslts_hdr_approved table
-@app.get("/votes_view_vote_rslts_hdr_approved/list", status_code=200,
+@app.get("/votes_view_vote_rslts_hdr_approved/list", 
+         status_code=200,
+         response_model=List[votes.ViewVoteRsltsHdrApproved],
+         responses={422: errors.LIMIT_ERROR},
          tags=["votes"])
 async def get_vote_rslts_hdr_approved_list(
     request: Request,
@@ -444,25 +662,35 @@ async def get_vote_rslts_hdr_approved_list(
     query = "SELECT * FROM votes_view_vote_rslts_hdr_approved"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "votes_view_vote_rslts_hdr_approved" table
 @app.get('/votes_view_vote_rslts_hdr_approved/{id}',
+         response_model=votes.ViewVoteRsltsHdrApproved,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["votes"])
 async def get_voter_result(id: int):
     data = DB.get_single_data('votes_view_vote_rslts_hdr_approved', 'id', id)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list committees_kns_documentcommitteesession_dataservice table
 @app.get("/committees_kns_documentcommitteesession_dataservice/list",
          status_code=200,
+         response_model=List[committees.KnsDocumentCommitteeSessionDataservice],
+         responses={422: errors.LIMIT_ERROR},
          tags=["committees"])
 async def get_documentcommitteesession_dataservice_list(
     request: Request,
@@ -486,16 +714,20 @@ async def get_documentcommitteesession_dataservice_list(
     query = "SELECT * FROM committees_kns_documentcommitteesession_dataservice"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "committees_kns_documentcommitteesession_dataservice" table
 @app.get('/committees_kns_documentcommitteesession_dataservice/{DocumentCommitteeSessionID}',
+         response_model=committees.KnsDocumentCommitteeSessionDataservice,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["committees"])
 async def get_document_committee_session(DocumentCommitteeSessionID: int):
     data = DB.get_single_data
@@ -504,12 +736,18 @@ async def get_document_committee_session(DocumentCommitteeSessionID: int):
         'DocumentCommitteeSessionID',
         DocumentCommitteeSessionID
     )
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list committees_kns_jointcommittee table
 @app.get("/committees_kns_jointcommittee/list",
          status_code=200,
+         response_model=List[committees.KnsJointCommittee],
+         responses={422: errors.LIMIT_ERROR},
          tags=["committees"])
 async def get_jointcommittee_list(
     request: Request,
@@ -529,26 +767,36 @@ async def get_jointcommittee_list(
     query = "SELECT * FROM committees_kns_jointcommittee"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "committees_kns_jointcommittee" table
 @app.get('/committees_kns_jointcommittee/{JointCommitteeID}',
+         response_model=committees.KnsJointCommittee,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["committees"])
 async def get_joint_committee(JointCommitteeID: int):
     data = DB.get_single_data('committees_kns_jointcommittee',
                               'JointCommitteeID', JointCommitteeID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list votes_vote_rslts_kmmbr_shadow_extra table
 @app.get("/votes_vote_rslts_kmmbr_shadow_extra/list",
          status_code=200,
+         response_model=List[votes.VoteRsltsKmmbrShadowExtra],
+         responses={422: errors.LIMIT_ERROR},
          tags=["votes"])
 async def get_vote_rslts_kmmbr_shadow_extra_list(
     request: Request,
@@ -577,17 +825,19 @@ async def get_vote_rslts_kmmbr_shadow_extra_list(
     query = "SELECT * FROM votes_vote_rslts_kmmbr_shadow_extra"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list plenum_kns_plenumsession table
 @app.get("/plenum_kns_plenumsession/list",
+         response_model=List[plenum.PlenumSession],
          status_code=200,
+         responses={422: errors.LIMIT_ERROR},
          tags=["plenum"])
 async def get_plenumsession_list(
     request: Request,
@@ -612,26 +862,37 @@ async def get_plenumsession_list(
     query = "SELECT * FROM plenum_kns_plenumsession"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for "plenum_kns_plenumsession" table
 @app.get('/bills_kns_plenumsession/{PlenumSessionID}',
+         response_model=plenum.PlenumSession,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["bills"])
 async def get_plenum_session(PlenumSessionID: int):
     data = DB.get_single_data('plenum_kns_plenumsession',
                               'PlenumSessionID', PlenumSessionID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list bills_kns_documentbill table
 @app.get("/bills_kns_documentbill/list",
-         status_code=200, tags=["bills"])
+         status_code=200,
+         response_model=List[bills.KnsDocumentBill],
+         responses={422: errors.LIMIT_ERROR},
+         tags=["bills"])
 async def get_documentbill_list(
     request: Request,
     limit: int = 100,
@@ -654,26 +915,37 @@ async def get_documentbill_list(
     query = "SELECT * FROM bills_kns_documentbill"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "bills_kns_documentbill" table
 @app.get('/bills_kns_documentbill/{DocumentBillID}',
+         response_model=bills.KnsDocumentBill,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["bills"])
 async def get_document_bill(DocumentBillID: int):
     data = DB.get_single_data('bills_kns_documentbill',
                               'DocumentBillID', DocumentBillID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list bills_kns_bill__airflow table
 @app.get("/bills_kns_bill__airflow/list",
-         status_code=200, tags=["bills"])
+         status_code=200,
+         response_model=List[bills.KnsBillAirflow],
+         responses={422: errors.LIMIT_ERROR},
+         tags=["bills"])
 async def get_bill__airflow_list(
     request: Request,
     limit: int = 100,
@@ -708,25 +980,36 @@ async def get_bill__airflow_list(
     query = "SELECT * FROM bills_kns_bill__airflow"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "bills_kns_bill__airflow" table
 @app.get('/bills_kns_bill__airflow/{BillID}',
-         tags=["bills"])
+          response_model=bills.KnsBillAirflow,
+          responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+          tags=["bills"])
 async def get_bill_airflow(BillID: int):
     data = DB.get_single_data('bills_kns_bill__airflow', 'BillID', BillID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list members_presence table
 @app.get("/members_presence/list",
-         status_code=200, tags=["members"])
+         status_code=200,
+         response_model=List[members.MembersPresence],
+         responses={422: errors.LIMIT_ERROR},
+         tags=["members"])
 async def get_members_presence_list(
     request: Request,
     limit: int = 100,
@@ -750,17 +1033,20 @@ async def get_members_presence_list(
     query = "SELECT * FROM members_presence"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list committees_kns_committee__airflow table
 @app.get("/committees_kns_committee__airflow/list",
-         status_code=200, tags=["committees"])
+         status_code=200,
+         response_model=List[committees.KnsCommitteeAirflow],
+         responses={422: errors.LIMIT_ERROR},
+         tags=["committees"])
 async def get_committee__airflow_list(
     request: Request,
     limit: int = 100,
@@ -791,26 +1077,37 @@ async def get_committee__airflow_list(
     query = "SELECT * FROM committees_kns_committee__airflow"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "committees_kns_committee__airflow" table
 @app.get('/committees_kns_committee__airflow/{CommitteeID}',
+         response_model=committees.KnsCommitteeAirflow,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["committees"])
 async def get_single_data_airflow(CommitteeID: int):
     data = DB.get_single_data('committees_kns_committee__airflow',
                               'CommitteeID', CommitteeID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list committees_build_build_meetings table
 @app.get("/committees_build_build_meetings/list",
-         status_code=200, tags=["committees"])
+         status_code=200,
+         response_model=List[committees.BuildMeetings],
+         responses={422: errors.LIMIT_ERROR},
+         tags=["committees"])
 async def get_build_meetings_list(
     request: Request,
     limit: int = 100,
@@ -871,26 +1168,37 @@ async def get_build_meetings_list(
     query = "SELECT * FROM committees_build_build_meetings"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "committees_build_build_meetings" table
 @app.get('/committees_build_build_meetings/{CommitteeSessionID}',
+         response_model=committees.BuildMeetings,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["committees"])
 async def get_build_meeting(CommitteeSessionID: int):
     data = DB.get_single_data('committees_build_build_meetings',
                               'CommitteeSessionID', CommitteeSessionID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list people_committees_joined_meetings table
 @app.get("/people_committees_joined_meetings/list",
-         status_code=200, tags=["people"])
+         status_code=200,
+         response_model=List[people.CommitteesJoinedMeetings],
+         responses={422: errors.LIMIT_ERROR},
+         tags=["people"])
 async def get_people_committees_joined_meetings_list(
     request: Request,
     limit: int = 100,
@@ -932,26 +1240,37 @@ async def get_people_committees_joined_meetings_list(
     query = "SELECT * FROM people_committees_joined_meetings"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "people_committees_joined_meetings" table
 @app.get('/people_committees_joined_meetings/{CommitteeSessionID}',
-         tags=["people"])
+          response_model=people.CommitteesJoinedMeetings,
+          responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+          tags=["people"])
 async def get_people_committees_joined_meeting(CommitteeSessionID: int):
     data = DB.get_single_data('people_committees_joined_meetings',
                               'CommitteeSessionID', CommitteeSessionID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list bills_kns_billhistoryinitiator table
 @app.get("/bills_kns_billhistoryinitiator/list",
-         status_code=200, tags=["bills"])
+         status_code=200,
+         response_model=List[bills.KnsBillHistoryInitiator],
+         responses={422: errors.LIMIT_ERROR},
+         tags=["bills"])
 async def get_billhistoryinitiator_list(
     request: Request,
     limit: int = 100,
@@ -975,27 +1294,37 @@ async def get_billhistoryinitiator_list(
     query = "SELECT * FROM bills_kns_billhistoryinitiator"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "bills_kns_billhistoryinitiator" table
 @app.get('/bills_kns_billhistoryinitiator/{BillHistoryInitiatorID}',
+         response_model=bills.KnsBillHistoryInitiator,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["bills"])
 async def get_bill_history_initiator(BillHistoryInitiatorID: int):
     data = DB.get_single_data('bills_kns_billhistoryinitiator',
                               'BillHistoryInitiatorID',
                               BillHistoryInitiatorID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list committees_document_background_material_titles table
 @app.get("/committees_document_background_material_titles/list",
          status_code=200,
+         response_model=List[committees.DocumentBackgroundMaterialTitles],
+         responses={422: errors.LIMIT_ERROR},
          tags=["committees"])
 async def get_document_background_material_titles_list(
     request: Request,
@@ -1016,29 +1345,39 @@ async def get_document_background_material_titles_list(
     query = "SELECT * FROM committees_document_background_material_titles"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "committees_document_background_material_titles" table
 @app.get(
     '/committees_document_background_material_titles/{DocumentCommitteeSessionID}',
+    response_model=committees.DocumentBackgroundMaterialTitles,
+    responses={
+        404: errors.NO_DATA_FOUND_ERROR
+    },
     tags=["committees"]
 )
 async def get_background_material_title(DocumentCommitteeSessionID: int):
     data = DB.get_single_data('committees_document_background_material_titles',
                               'DocumentCommitteeSessionID',
                               DocumentCommitteeSessionID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list people_committees_meeting_attendees table
 @app.get("/people_committees_meeting_attendees/list",
          status_code=200,
+         response_model=List[people.CommitteesMeetingAttendees],
+         responses={422: errors.LIMIT_ERROR},
          tags=["people"])
 async def get_committees_meeting_attendees_list(
     request: Request,
@@ -1125,27 +1464,38 @@ async def get_committees_meeting_attendees_list(
     query = "SELECT * FROM people_committees_meeting_attendees"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "people_committees_meeting_attendees" table
 @app.get('/people_committees_meeting_attendees/{CommitteeSessionID}',
+         response_model=people.CommitteesMeetingAttendees,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["people"])
 async def get_meeting_attendees(CommitteeSessionID: int):
     data = DB.get_single_data('people_committees_meeting_attendees',
                               'CommitteeSessionID',
                               CommitteeSessionID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list knesset_kns_knessetdates table
 @app.get("/knesset_kns_knessetdates/list",
-         status_code=200, tags=["knesset"])
+         response_model=List[knesset.KnsKnessetDates],
+         status_code=200,
+         responses={422: errors.LIMIT_ERROR},
+         tags=["knesset"])
 async def get_knessetdates_list(
     request: Request,
     limit: int = 100,
@@ -1169,26 +1519,37 @@ async def get_knessetdates_list(
     query = "SELECT * FROM knesset_kns_knessetdates"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "knesset_kns_knessetdates" table
 @app.get('/knesset_kns_knessetdates/{KnessetDateID}',
+         response_model=knesset.KnsKnessetDates,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["knesset"])
 async def get_knesset_dates(KnessetDateID: int):
     data = DB.get_single_data('knesset_kns_knessetdates',
                               'KnessetDateID', KnessetDateID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list votes_view_vote_mk_individual table
 @app.get("/votes_view_vote_mk_individual/list",
-         status_code=200, tags=["votes"])
+         status_code=200,
+         response_model=List[votes.ViewVoteMkIndividual],
+         responses={422: errors.LIMIT_ERROR},
+         tags=["votes"])
 async def get_vote_mk_individual_list(
     request: Request,
     limit: int = 100,
@@ -1209,25 +1570,36 @@ async def get_vote_mk_individual_list(
     query = "SELECT * FROM votes_view_vote_mk_individual"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "votes_view_vote_mk_individual" table
 @app.get('/votes_view_vote_mk_individual/{vip_id}',
-         tags=["votes"])
+          response_model=votes.ViewVoteMkIndividual,
+          responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+          tags=["votes"])
 async def get_vote_mk_individual(vip_id: int):
     data = DB.get_single_data('votes_view_vote_mk_individual',
                               'vip_id', vip_id)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list bills_kns_bill table
-@app.get("/bills_kns_bill/list", status_code=200,
+@app.get("/bills_kns_bill/list",
+         status_code=200,
+         response_model=List[bills.KnsBill],
+         responses={422: errors.LIMIT_ERROR},
          tags=["bills"])
 async def get_bill_list(
     request: Request,
@@ -1263,23 +1635,35 @@ async def get_bill_list(
     query = "SELECT * FROM bills_kns_bill"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "bills_kns_bill" table
-@app.get('/bills_kns_bill/{BillID}', tags=["bills"])
+@app.get('/bills_kns_bill/{BillID}',
+         response_model=bills.KnsBill,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+         tags=["bills"])
 async def get_bill(BillID: int):
     data = DB.get_single_data('bills_kns_bill', 'BillID', BillID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list members_kns_person__airflow table
-@app.get("/members_kns_person__airflow/list", status_code=200,
+@app.get("/members_kns_person__airflow/list",
+         status_code=200,
+         response_model=List[members.PersonAirflow],
+         responses={422: errors.LIMIT_ERROR},
          tags=["members"])
 async def get_person__airflow_list(
     request: Request,
@@ -1303,25 +1687,36 @@ async def get_person__airflow_list(
     query = "SELECT * FROM members_kns_person__airflow"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "members_kns_person__airflow" table
 @app.get('/members_kns_person__airflow/{PersonID}',
+         response_model=members.PersonAirflow,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["members"])
 async def get_person_airflow(PersonID: int):
     data = DB.get_single_data('members_kns_person__airflow',
                               'PersonID', PersonID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for committees_joined_meetings table
-@app.get("/committees_joined_meetings/list", status_code=200,
+@app.get("/committees_joined_meetings/list",
+         status_code=200,
+         response_model=List[committees.JoinedMeetings],
+         responses={422: errors.LIMIT_ERROR},
          tags=["committees"])
 async def get_joined_meetings_list(
     request: Request,
@@ -1359,27 +1754,37 @@ async def get_joined_meetings_list(
     query = "SELECT * FROM committees_joined_meetings"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "committees_joined_meetings" table
 @app.get('/committees_joined_meetings/{CommitteeSessionID}',
+         response_model=committees.JoinedMeetings,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["committees"])
 async def get_joined_meeting(CommitteeSessionID: int):
     data = DB.get_single_data('committees_joined_meetings',
                               'CommitteeSessionID',
                               CommitteeSessionID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list people_mk_party_discipline_stats table
 @app.get("/people_mk_party_discipline_stats/list",
          status_code=200,
+         response_model=List[people.PartyDisciplineStats],
+         responses={422: errors.LIMIT_ERROR},
          tags=["people"])
 async def get_mk_party_discipline_stats_list(
     request: Request,
@@ -1407,16 +1812,18 @@ async def get_mk_party_discipline_stats_list(
     query = "SELECT * FROM people_mk_party_discipline_stats"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list knesset_kns_status table
-@app.get("/knesset_kns_status/list", status_code=200,
+@app.get("/knesset_kns_status/list",status_code=200,
+         response_model=List[knesset.KnsStatus],
+         responses={422: errors.LIMIT_ERROR},
          tags=["knesset"])
 async def get_knesset_status_list(
     request: Request,
@@ -1439,25 +1846,36 @@ async def get_knesset_status_list(
     query = "SELECT * FROM knesset_kns_status"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "knesset_kns_status" table
 @app.get('/knesset_kns_status/{StatusID}',
-         tags=["knesset"])
+          response_model=knesset.KnsStatus,
+          responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+          tags=["knesset"])
 async def get_status(StatusID: int):
     data = DB.get_single_data('knesset_kns_status',
                               'StatusID', StatusID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list votes_vote_rslts_kmmbr_shadow table
-@app.get("/votes_vote_rslts_kmmbr_shadow/list", status_code=200,
+@app.get("/votes_vote_rslts_kmmbr_shadow/list",
+         status_code=200,
+         response_model=List[votes.VoteRsltsKmmbrShadow],
+         responses={422: errors.LIMIT_ERROR},
          tags=["votes"])
 async def get_vote_rslts_kmmbr_shadow_list(
     request: Request,
@@ -1484,17 +1902,19 @@ async def get_vote_rslts_kmmbr_shadow_list(
     query = "SELECT * FROM votes_vote_rslts_kmmbr_shadow"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list people_committees_meeting_attendees_mks_full_stats table
 @app.get("/people_committees_meeting_attendees_mks_full_stats/list",
          status_code=200,
+         response_model=List[people.CommitteesMeetingAttendeesMksFullStats],
+         responses={422: errors.LIMIT_ERROR},
          tags=["people"])
 async def get_attendees_mks_full_stats_list(
     request: Request,
@@ -1523,17 +1943,19 @@ async def get_attendees_mks_full_stats_list(
     query = "SELECT * FROM people_committees_meeting_attendees_mks_full_stats"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list people_committees_meeting_speaker_stats table
 @app.get("/people_committees_meeting_speaker_stats/list",
          status_code=200,
+         response_model=List[people.CommitteesMeetingSpeakerStats],
+         responses={422: errors.LIMIT_ERROR},
          tags=["people"])
 async def get_meeting_speaker_stats_list(
     request: Request,
@@ -1560,17 +1982,20 @@ async def get_meeting_speaker_stats_list(
     query = "SELECT * FROM people_committees_meeting_speaker_stats"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list committees_kns_cmtsitecode table
 @app.get("/committees_kns_cmtsitecode/list",
-         status_code=200, tags=["committees"])
+         status_code=200,
+         response_model=List[committees.KnsCmtSitecode],
+         responses={422: errors.LIMIT_ERROR},
+         tags=["committees"])
 async def get_cmtsitecode_list(
     request: Request,
     limit: int = 100,
@@ -1588,25 +2013,35 @@ async def get_cmtsitecode_list(
     query = "SELECT * FROM committees_kns_cmtsitecode"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "committees_kns_cmtsitecode" table
 @app.get('/committees_kns_cmtsitecode/{CmtSiteCode}',
-         tags=["committees"])
+          response_model=committees.KnsCmtSitecode,
+          responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+          tags=["committees"])
 async def get_cmt_site_code(CmtSiteCode: int):
     data = DB.get_single_data('committees_kns_cmtsitecode',
                               'CmtSiteCode', CmtSiteCode)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list laws_kns_document_law table
 @app.get("/laws_kns_document_law/list", status_code=200,
+         response_model=List[laws.DocumentLaw],
+         responses={422: errors.LIMIT_ERROR},
          tags=["laws"])
 async def get_document_law_list(
     request: Request,
@@ -1630,26 +2065,37 @@ async def get_document_law_list(
     query = "SELECT * FROM laws_kns_document_law"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for "laws_kns_document_law" table
 @app.get('/laws_kns_document_law/{DocumentLawID}',
-         tags=["laws"])
+          response_model=laws.DocumentLaw,
+          responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+          tags=["laws"])
 async def get_document_law(DocumentLawID: int):
     data = DB.get_single_data('laws_kns_document_law',
                               'DocumentLawID', DocumentLawID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list committees_meeting_protocols_parts table
 @app.get("/committees_meeting_protocols_parts/list",
-         status_code=200, tags=["committees"])
+         status_code=200,
+         response_model=List[committees.MeetingProtocolsParts],
+         responses={422: errors.LIMIT_ERROR},
+         tags=["committees"])
 async def get_meeting_protocols_parts_list(
     request: Request,
     limit: int = 100,
@@ -1678,27 +2124,37 @@ async def get_meeting_protocols_parts_list(
     query = "SELECT * FROM committees_meeting_protocols_parts"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "committees_meeting_protocols_parts" table
 @app.get('/committees_meeting_protocols_parts/{DocumentCommitteeSessionID}',
+         response_model=committees.MeetingProtocolsParts,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["committees"])
 async def get_meeting_protocols_parts(DocumentCommitteeSessionID: int):
     data = DB.get_single_data('committees_meeting_protocols_parts',
                               'DocumentCommitteeSessionID',
                               DocumentCommitteeSessionID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list votes_view_vote_rslts_hdr_approved_extra table
 @app.get("/votes_view_vote_rslts_hdr_approved_extra/list",
          status_code=200,
+         response_model=List[votes.ViewVoteRsltsHdrApprovedExtra],
+         responses={422: errors.LIMIT_ERROR},
          tags=["votes"])
 async def get_vote_rslts_hdr_approved_extra_list(
     request: Request,
@@ -1748,26 +2204,36 @@ async def get_vote_rslts_hdr_approved_extra_list(
     query = "SELECT * FROM votes_view_vote_rslts_hdr_approved_extra"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for "votes_view_vote_rslts_hdr_approved_extra" table
 @app.get('/votes_view_vote_rslts_hdr_approved_extra/{id}',
+         response_model=votes.ViewVoteRsltsHdrApprovedExtra,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["votes"])
 async def get_vote_rslts_hdr_approved_extra(id: int):
     data = DB.get_single_data('votes_view_vote_rslts_hdr_approved_extra',
                               'id', id)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list committees_build_rendered_meetings_stats table
 @app.get("/committees_build_rendered_meetings_stats/list",
          status_code=200,
+         response_model=List[committees.BuildRenderedMeetingsStats],
+         responses={422: errors.LIMIT_ERROR},
          tags=["committees"])
 async def get_build_rendered_meetings_stats_list(
     request: Request,
@@ -1785,26 +2251,36 @@ async def get_build_rendered_meetings_stats_list(
     query = "SELECT * FROM committees_build_rendered_meetings_stats"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "committees_build_rendered_meetings_stats" table
 @app.get('/committees_build_rendered_meetings_stats/{CommitteeSessionID}',
+         response_model=committees.BuildRenderedMeetingsStats,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["committees"])
 async def get_rendered_meetings_stats(CommitteeSessionID: int):
     data = DB.get_single_data('committees_build_rendered_meetings_stats',
                               'CommitteeSessionID',
                               CommitteeSessionID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list plenum_kns_plmsessionitem table
 @app.get("/plenum_kns_plmsessionitem/list", status_code=200,
+         response_model=List[plenum.PlmSessionItem],
+         responses={422: errors.LIMIT_ERROR},
          tags=["plenum"])
 async def get_plmsessionitem_list(
     request: Request,
@@ -1830,26 +2306,36 @@ async def get_plmsessionitem_list(
     query = "SELECT * FROM plenum_kns_plmsessionitem"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "plenum_kns_plmsessionitem" table
 @app.get('/plenum_kns_plmsessionitem/{plmPlenumSessionID}',
+         response_model=plenum.PlmSessionItem,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["plenum"])
 async def get_plmsessionitem(plmPlenumSessionID: int):
     data = DB.get_single_data('plenum_kns_plmsessionitem',
                               'plmPlenumSessionID',
                               plmPlenumSessionID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list lobbyists_v_lobbyist_clients table
 @app.get("/lobbyists_v_lobbyist_clients/list", status_code=200,
+         response_model=List[lobbyists.LobbyistClients],
+         responses={422: errors.LIMIT_ERROR},
          tags=["lobbyists"])
 async def get_lobbyist_clients_list(
     request: Request,
@@ -1870,17 +2356,19 @@ async def get_lobbyist_clients_list(
     query = "SELECT * FROM lobbyists_v_lobbyist_clients"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list laws_kns_israel_law table
 @app.get("/laws_kns_israel_law/list",
          status_code=200,
+         response_model=List[laws.IsraelLaw],
+         responses={422: errors.LIMIT_ERROR},
          tags=["laws"])
 async def get_israel_law_list(
     request: Request,
@@ -1911,26 +2399,41 @@ async def get_israel_law_list(
     query = "SELECT * FROM laws_kns_israel_law"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       return JSONResponse(content={'error': 'LimitError','msg':str(data)},
                             status_code=response_status)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "laws_kns_israel_law" table
 @app.get('/laws_kns_israel_law/{IsraelLawID}',
+         response_model=laws.IsraelLaw,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["laws"])
 async def get_israel_law(IsraelLawID: int):
     data = DB.get_single_data('laws_kns_israel_law',
                               'IsraelLawID', IsraelLawID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for votes_vote_result_type table
 @app.get("/votes_vote_result_type/list",
-         status_code=200, tags=["votes"])
+         status_code=200,
+         response_model=List[votes.VoteResultType],
+         responses={422: errors.LIMIT_ERROR},
+         tags=["votes"])
 async def get_vote_result_type_list(
     request: Request,
     limit: int = 100,
@@ -1947,26 +2450,35 @@ async def get_vote_result_type_list(
     query = "SELECT * FROM votes_vote_result_type"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "votes_vote_result_type" table
 @app.get('/votes_vote_result_type/{result_type_id}',
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["votes"])
 async def get_vote_result_type(result_type_id: int):
     data = DB.get_single_data('votes_vote_result_type',
                               'result_type_id', result_type_id)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list committees_kns_documentcommitteesession table
 @app.get("/committees_kns_documentcommitteesession/list",
          status_code=200,
+         response_model=List[committees.KnsDocumentCommitteeSession],
+         responses={422: errors.LIMIT_ERROR},
          tags=["committees"])
 async def get_documentcommitteesession_list(
     request: Request,
@@ -2005,17 +2517,19 @@ async def get_documentcommitteesession_list(
     query = "SELECT * FROM committees_kns_documentcommitteesession"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for lobbyists_v_lobbyist table
 @app.get("/lobbyists_v_lobbyist/list",
          status_code=200,
+         response_model=List[lobbyists.Lobbyist],
+         responses={422: errors.LIMIT_ERROR},
          tags=["lobbyists"])
 async def get_lobbyist_list(
     request: Request,
@@ -2042,26 +2556,36 @@ async def get_lobbyist_list(
     query = "SELECT * FROM lobbyists_v_lobbyist"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "lobbyists_v_lobbyist" table
 @app.get('/lobbyists_v_lobbyist/{LobbyistID}',
-         tags=["lobbyists"])
+          response_model=lobbyists.Lobbyist,
+          responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+          tags=["lobbyists"])
 async def get_lobbyist(LobbyistID: int):
     data = DB.get_single_data('lobbyists_v_lobbyist',
                               'LobbyistID', LobbyistID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list laws_kns_israel_law_binding table
 @app.get("/laws_kns_israel_law_binding/list",
          status_code=200,
+         response_model=List[laws.IsraelLawBinding],
+         responses={422: errors.LIMIT_ERROR},
          tags=["laws"])
 async def get_israel_law_binding_list(
     request: Request,
@@ -2083,26 +2607,36 @@ async def get_israel_law_binding_list(
     query = "SELECT * FROM laws_kns_israel_law_binding"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "laws_kns_israel_law_binding" table
 @app.get('/laws_kns_israel_law_binding/{IsraelLawBinding}',
-         tags=["laws"])
+          response_model=laws.IsraelLawBinding,
+          responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+          tags=["laws"])
 async def get_israel_law_binding(IsraelLawBinding: int):
     data = DB.get_single_data('laws_kns_israel_law_binding',
                               'IsraelLawBinding', IsraelLawBinding)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list people_plenum_session_voters table
 @app.get("/people_plenum_session_voters/list",
          status_code=200,
+         response_model=List[people.PlenumSessionVoters],
+         responses={422: errors.LIMIT_ERROR},
          tags=["people"])
 async def get_plenum_session_voters_list(
     request: Request,
@@ -2132,26 +2666,36 @@ async def get_plenum_session_voters_list(
     query = "SELECT * FROM people_plenum_session_voters"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "people_plenum_session_voters" table
 @app.get('/people_plenum_session_voters/{PlenumSessionID}',
-         tags=["people"])
+          response_model=people.PlenumSessionVoters,
+          responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+          tags=["people"])
 async def get_plenum_session_voters(PlenumSessionID: int):
     data = DB.get_single_data('people_plenum_session_voters',
                               'PlenumSessionID', PlenumSessionID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list people_mk_voted_against_majority table
 @app.get("/people_mk_voted_against_majority/list",
          status_code=200,
+         response_model=List[people.MkVotedAgainstMajority],
+         responses={422: errors.LIMIT_ERROR},
          tags=["people"])
 async def get_mk_voted_against_majority_list(
     request: Request,
@@ -2178,17 +2722,19 @@ async def get_mk_voted_against_majority_list(
     query = "SELECT * FROM people_mk_voted_against_majority"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list committees_kns_cmtsessionitem table
 @app.get("/committees_kns_cmtsessionitem/list",
          status_code=200,
+         response_model=List[committees.KnsCmtSessionItem],
+         responses={422: errors.LIMIT_ERROR},
          tags=["committees"])
 async def get_cmtsessionitem_list(
     request: Request,
@@ -2212,27 +2758,37 @@ async def get_cmtsessionitem_list(
     query = "SELECT * FROM committees_kns_cmtsessionitem"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for "committees_kns_cmtsessionitem" table
 @app.get('/committees_kns_cmtsessionitem/{CmtSessionItemID}',
-         tags=["committees"])
+          response_model=committees.KnsCmtSessionItem,
+          responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+          tags=["committees"])
 async def get_cmtsessionitem(CmtSessionItemID: int):
     data = DB.get_single_data('committees_kns_cmtsessionitem',
                               'CmtSessionItemID',
                               CmtSessionItemID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list laws_kns_israel_law_ministry table
 @app.get("/laws_kns_israel_law_ministry/list",
          status_code=200,
+         response_model=List[laws.IsraelLawMinistry],
+         responses={422: errors.LIMIT_ERROR},
          tags=["laws"])
 async def get_israel_law_ministry_list(
     request: Request,
@@ -2252,26 +2808,36 @@ async def get_israel_law_ministry_list(
     query = "SELECT * FROM laws_kns_israel_law_ministry"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "laws_kns_israel_law_ministry" table
 @app.get('/laws_kns_israel_law_ministry/{LawMinistryID}',
+         response_model=laws.IsraelLawMinistry,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["laws"])
 async def get_israel_law_ministry(LawMinistryID: int):
     data = DB.get_single_data('laws_kns_israel_law_ministry',
                               'LawMinistryID', LawMinistryID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list people_mk_party_discipline_knesset_20 table
 @app.get("/people_mk_party_discipline_knesset_20/list",
          status_code=200,
+         response_model=List[people.MkPartyDisciplineKnesset20],
+         responses={422: errors.LIMIT_ERROR},
          tags=["people"])
 async def get_mk_party_discipline_knesset_20_list(
     request: Request,
@@ -2300,17 +2866,19 @@ async def get_mk_party_discipline_knesset_20_list(
     query = "SELECT * FROM people_mk_party_discipline_knesset_20"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list committees_kns_committeesession table
 @app.get("/committees_kns_committeesession/list",
          status_code=200,
+         response_model=List[committees.KnsCommitteeSession],
+         responses={422: errors.LIMIT_ERROR},
          tags=["committees"])
 async def get_committeesession_list(
     request: Request,
@@ -2362,17 +2930,20 @@ async def get_committeesession_list(
     query = "SELECT * FROM committees_kns_committeesession"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list members_kns_mksitecode table
 @app.get("/members_kns_mksitecode/list",
-         status_code=200, tags=["members"])
+         status_code=200,
+         response_model=List[members.Mksitecode],
+         responses={422: errors.LIMIT_ERROR},
+         tags=["members"])
 async def get_mksitecode_list(
     request: Request,
     limit: int = 100,
@@ -2390,26 +2961,36 @@ async def get_mksitecode_list(
     query = "SELECT * FROM members_kns_mksitecode"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "members_kns_mksitecode" table
 @app.get('/members_kns_mksitecode/{MKSiteCode}',
+         response_model=members.Mksitecode,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["members"])
 async def get_mksitecode(MKSiteCode: int):
     data = DB.get_single_data('members_kns_mksitecode',
                               'MKSiteCode', MKSiteCode)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list people_committees_meeting_attendees_mks_stats table
 @app.get("/people_committees_meeting_attendees_mks_stats/list",
          status_code=200,
+         response_model=List[people.CommitteesMeetingAttendeesMksStats],
+         responses={422: errors.LIMIT_ERROR},
          tags=["people"])
 async def get_committee_attendees_mks_stats_list(
     request: Request,
@@ -2436,16 +3017,20 @@ async def get_committee_attendees_mks_stats_list(
     query = "SELECT * FROM people_committees_meeting_attendees_mks_stats"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for laws_kns_law table
-@app.get("/laws_kns_law/list", status_code=200, tags=["laws"])
+@app.get("/laws_kns_law/list", 
+          status_code=200,
+          response_model=List[laws.KnsLaw],
+          responses={422: errors.LIMIT_ERROR},
+          tags=["laws"])
 async def get_law_list(
     request: Request,
     limit: int = 100,
@@ -2473,24 +3058,35 @@ async def get_law_list(
     query = "SELECT * FROM laws_kns_law"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "laws_kns_law" table
-@app.get('/laws_kns_law/{LawID}', tags=["laws"])
+@app.get('/laws_kns_law/{LawID}',
+         response_model=laws.KnsLaw,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+         tags=["laws"])
 async def get_law(LawID: int):
     data = DB.get_single_data('laws_kns_law', 'LawID', LawID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list committees_document_committee_sessions_for_parsing table
 @app.get("/committees_document_committee_sessions_for_parsing/list",
          status_code=200,
+         response_model=List[committees.DocumentCommitteeSessionsParsing],
+         responses={422: errors.LIMIT_ERROR},
          tags=["committees"])
 async def get_committee_sessions_for_parsing_list(
     request: Request,
@@ -2515,17 +3111,21 @@ async def get_committee_sessions_for_parsing_list(
     query = "SELECT * FROM committees_document_committee_sessions_for_parsing"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "committees_document_committee_sessions_for_parsing" table
 @app.get('/committees_document_committee_sessions_for_parsing/{DocumentCommitteeSessionID}',
-         tags=["committees"])
+          response_model=committees.DocumentCommitteeSessionsParsing,
+          responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+          tags=["committees"])
 async def get_document_committee_sessions_for_parsing(DocumentCommitteeSessionID: int):
     data = DB.get_single_data
     (
@@ -2533,41 +3133,17 @@ async def get_document_committee_sessions_for_parsing(DocumentCommitteeSessionID
         'DocumentCommitteeSessionID',
         DocumentCommitteeSessionID
     )
-    return {'success': True, 'data': data}
-
-
-# Route for people_committees_meeting_attendees_mks_stats_errors table
-@app.get("/people_committees_meeting_attendees_mks_stats_errors/list",
-         status_code=200,
-         tags=["people"])
-async def get_committee_attendees_mks_stats_errors_list(
-    request: Request,
-    limit: int = 100,
-    offset: int = 0,
-    order_by: Optional[str] = None
-):
-    query_params = request.query_params.items()
-    qs_parts = []
-    for key, value in query_params:
-        if key not in ['limit', 'offset', 'order_by']:
-            qs_parts.append(f"{key}={value}")
-    qs = '&'.join(qs_parts)
-    query = ("SELECT * FROM "
-             "people_committees_meeting_attendees_mks_stats_errors"
-             )
-    data = DB.get_data_list(query, limit, offset, order_by, qs)
-    if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
 
 
 # Route for list committees_download_document_committee_session table
 @app.get("/committees_download_document_committee_session/list",
          status_code=200,
+         response_model=List[committees.DownloadDocumentCommitteeSession],
+         responses={422: errors.LIMIT_ERROR},
          tags=["committees"])
 async def get_download_document_committee_session_list(
     request: Request,
@@ -2596,27 +3172,37 @@ async def get_download_document_committee_session_list(
     query = "SELECT * FROM committees_download_document_committee_session"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "committees_download_document_committee_session" table
 @app.get('/committees_download_document_committee_session/{DocumentCommitteeSessionID}',
+         response_model=committees.DownloadDocumentCommitteeSession,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["committees"])
 async def get_download_document_committee_session(DocumentCommitteeSessionID: int):
     data = DB.get_single_data('committees_download_document_committee_session',
                               'DocumentCommitteeSessionID',
                               DocumentCommitteeSessionID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list laws_kns_israel_law_name table
 @app.get("/laws_kns_israel_law_name/list",
          status_code=200,
+         response_model=List[laws.IsraelLawName],
+         responses={422: errors.LIMIT_ERROR},
          tags=["laws"])
 async def get_israel_law_name_list(
     request: Request,
@@ -2638,26 +3224,36 @@ async def get_israel_law_name_list(
     query = "SELECT * FROM laws_kns_israel_law_name"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "laws_kns_israel_law_name" table
 @app.get('/laws_kns_israel_law_name/{IsraelLawNameID}',
+         response_model=laws.IsraelLawName,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["laws"])
 async def get_israel_law_name(IsraelLawNameID: int):
     data = DB.get_single_data('laws_kns_israel_law_name',
                               'IsraelLawNameID', IsraelLawNameID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list people_members_joined_mks table
 @app.get("/people_members_joined_mks/list",
          status_code=200,
+         response_model=List[people.MembersJoinedMks],
+         responses={422: errors.LIMIT_ERROR},
          tags=["people"])
 async def get_joined_mks_list(
     request: Request,
@@ -2728,26 +3324,36 @@ async def get_joined_mks_list(
     query = "SELECT * FROM people_members_joined_mks"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "people_members_joined_mks" table
 @app.get('/people_members_joined_mks/{mk_individual_id}',
-         tags=["people"])
+          response_model=people.MembersJoinedMks,
+          responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+          tags=["people"])
 async def get_members_joined_mks(mk_individual_id: int):
     data = DB.get_single_data('people_members_joined_mks',
                               'mk_individual_id', mk_individual_id)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list laws_kns_law_binding table
 @app.get("/laws_kns_law_binding/list",
          status_code=200,
+         response_model=List[laws.LawBinding],
+         responses={422: errors.LIMIT_ERROR},
          tags=["laws"])
 async def get_law_binding_list(
     request: Request,
@@ -2775,25 +3381,36 @@ async def get_law_binding_list(
     query = "SELECT * FROM laws_kns_law_binding"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "laws_kns_law_binding" table
-@app.get('/laws_kns_law_binding/{LawBindingID}', tags=["laws"])
+@app.get('/laws_kns_law_binding/{LawBindingID}',
+         response_model=laws.LawBinding,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR
+         },
+         tags=["laws"])
 async def get_law_binding(LawBindingID: int):
     data = DB.get_single_data('laws_kns_law_binding',
                               'LawBindingID', LawBindingID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list knesset_kns_itemtype table
 @app.get("/knesset_kns_itemtype/list",
          status_code=200,
+         response_model=List[knesset.KnsItemtype],
+         responses={422: errors.LIMIT_ERROR},
          tags=["knesset"])
 async def get_knesset_itemtype_list(
     request: Request,
@@ -2812,24 +3429,35 @@ async def get_knesset_itemtype_list(
     query = "SELECT * FROM knesset_kns_itemtype"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "knesset_kns_itemtype" table
-@app.get('/knesset_kns_itemtype/{ItemTypeID}', tags=["knesset"])
+@app.get('/knesset_kns_itemtype/{ItemTypeID}',
+          response_model=knesset.KnsItemtype,
+          responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+          tags=["knesset"])
 async def get_itemtype(ItemTypeID: int):
     data = DB.get_single_data('knesset_kns_itemtype', 'ItemTypeID', ItemTypeID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list committees_meeting_protocols_text table
 @app.get("/committees_meeting_protocols_text/list",
          status_code=200,
+         response_model=List[committees.MeetingProtocolsText],
+         responses={422: errors.LIMIT_ERROR},
          tags=["committees"])
 async def get_committee_meeting_protocols_text_list(
     request: Request,
@@ -2859,27 +3487,37 @@ async def get_committee_meeting_protocols_text_list(
     query = "SELECT * FROM committees_meeting_protocols_text"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "committees_meeting_protocols_text" table
 @app.get('/committees_meeting_protocols_text/{DocumentCommitteeSessionID}',
-         tags=["committees"])
+          response_model=committees.MeetingProtocolsText,
+          responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+          tags=["committees"])
 async def get_meeting_protocols_text(DocumentCommitteeSessionID: int):
     data = DB.get_single_data('committees_meeting_protocols_text',
                               'DocumentCommitteeSessionID',
                               DocumentCommitteeSessionID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list people_committees_meeting_attendees_mks table
 @app.get("/people_committees_meeting_attendees_mks/list",
          status_code=200,
+         response_model=List[people.CommitteesMeetingAttendeesMks],
+         responses={422: errors.LIMIT_ERROR},
          tags=["people"])
 async def get_committee_attendees_mks_list(
     request: Request,
@@ -2924,7 +3562,6 @@ async def get_committee_attendees_mks_list(
     objects_name = ["invitees_name", "invitees_role"]
     for key, value in query_params:
         if key in arrays_number_names:
-            print(arrays_number_val)
             elemts = arrays_number_val[arrays_number_names.index(key)]
             qs_parts.append(f"{key}={elemts}")
             if key not in ['limit', 'offset', 'order_by'] and \
@@ -2942,17 +3579,19 @@ async def get_committee_attendees_mks_list(
     query = "SELECT * FROM people_committees_meeting_attendees_mks"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list members_kns_person table
 @app.get("/members_kns_person/list",
          status_code=200,
+         response_model=List[members.Person],
+         responses={422: errors.LIMIT_ERROR},
          tags=["members"])
 async def get_person_list(
     request: Request,
@@ -2977,24 +3616,35 @@ async def get_person_list(
     query = "SELECT * FROM members_kns_person"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "members_kns_person" table
-@app.get('/members_kns_person/{PersonID}', tags=["members"])
+@app.get('/members_kns_person/{PersonID}',
+          response_model=members.Person,
+          responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+          tags=["members"])
 async def get_person(PersonID: int):
     data = DB.get_single_data('members_kns_person', 'PersonID', PersonID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list members_mk_individual table
 @app.get("/members_mk_individual/list",
          status_code=200,
+         response_model=List[members.Individual],
+         responses={422: errors.LIMIT_ERROR},
          tags=["members"])
 async def get_mk_individual_list(
     request: Request,
@@ -3033,26 +3683,36 @@ async def get_mk_individual_list(
     query = "SELECT * FROM members_mk_individual"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "members_mk_individual" table
 @app.get('/members_mk_individual/{mk_individual_id}',
+         response_model=members.Individual,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["members"])
 async def get_individual(mk_individual_id: int):
     data = DB.get_single_data('members_mk_individual',
                               'mk_individual_id', mk_individual_id)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list members_factions table
 @app.get("/members_factions/list",
          status_code=200,
+         response_model=List[members.Factions],
+         responses={422: errors.LIMIT_ERROR},
          tags=["members"])
 async def get_factions_list(
     request: Request,
@@ -3078,24 +3738,35 @@ async def get_factions_list(
     query = "SELECT * FROM members_factions"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for "members_factions" table
-@app.get('/members_factions/{id}', tags=["members"])
+@app.get('/members_factions/{id}',
+         response_model=members.Factions,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+         tags=["members"])
 async def get_factions(id: int):
     data = DB.get_single_data('members_factions', 'id', id)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list laws_kns_israel_law_classification table
-@app.get("/laws_kns_israel_law_classification/list",
+@app.get("/laws_kns_israel_law_classification/list",       
          status_code=200,
+         response_model=List[laws.IsraelLawClassification],
+         responses={422: errors.LIMIT_ERROR},
          tags=["laws"])
 async def get_israel_law_classification_list(
     request: Request,
@@ -3116,27 +3787,37 @@ async def get_israel_law_classification_list(
     query = "SELECT * FROM laws_kns_israel_law_classification"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "laws_kns_israel_law_classification" table
 @app.get('/laws_kns_israel_law_classification/{LawClassificiationID}',
+         response_model=laws.IsraelLawClassification,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["laws"])
 async def get_israel_law_classification(LawClassificiationID: int):
     data = DB.get_single_data('laws_kns_israel_law_classification',
                               'LawClassificiationID',
                               LawClassificiationID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list members_mk_individual_names table
 @app.get("/members_mk_individual_names/list",
          status_code=200,
+         response_model=List[members.IndividualNames],
+         responses={422: errors.LIMIT_ERROR},
          tags=["members"])
 async def get_mk_individual_names_list(
     request: Request,
@@ -3160,27 +3841,37 @@ async def get_mk_individual_names_list(
     query = "SELECT * FROM members_mk_individual_names"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "members_mk_individual_names" table
 @app.get('/members_mk_individual_names/{mk_individual_id}',
+         response_model=members.IndividualNames,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["members"])
 async def get_individual_names(mk_individual_id: int):
     data = DB.get_single_data('members_mk_individual_names',
                               'mk_individual_id',
                               mk_individual_id)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list members_faction_memberships table
 @app.get("/members_faction_memberships/list",
          status_code=200,
+         response_model=List[members.FactionMemberships],
+         responses={422: errors.LIMIT_ERROR},
          tags=["members"])
 async def get_members_faction_memberships_list(
     request: Request,
@@ -3212,26 +3903,36 @@ async def get_members_faction_memberships_list(
     query = "SELECT * FROM members_faction_memberships"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "members_faction_memberships" table
 @app.get('/members_faction_memberships/{faction_id}',
-         tags=["members"])
+          response_model=members.FactionMemberships,
+          responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+          tags=["members"])
 async def get_faction_memberships(faction_id: int):
     data = DB.get_single_data('members_faction_memberships',
                               'faction_id', faction_id)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list members_kns_persontoposition table
 @app.get("/members_kns_persontoposition/list",
          status_code=200,
+         response_model=List[members.PersonToPosition],
+         responses={422: errors.LIMIT_ERROR},
          tags=["members"])
 async def get_person_to_position_list(
     request: Request,
@@ -3263,27 +3964,37 @@ async def get_person_to_position_list(
     query = "SELECT * FROM members_kns_persontoposition"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "members_kns_persontoposition" table
 @app.get('/members_kns_persontoposition/{PersonToPositionID}',
-         tags=["members"])
+          response_model=members.PersonToPosition,
+          responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
+          tags=["members"])
 async def get_persontoposition(PersonToPositionID: int):
     data = DB.get_single_data('members_kns_persontoposition',
                               'PersonToPositionID',
                               PersonToPositionID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list committees_kns_committee table
 @app.get("/committees_kns_committee/list",
          status_code=200,
+         response_model=List[committees.KnsCommittee],
+         responses={422: errors.LIMIT_ERROR},
          tags=["committees"])
 async def get_committee_list(
     request: Request,
@@ -3315,26 +4026,36 @@ async def get_committee_list(
     query = "SELECT * FROM committees_kns_committee"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "committees_kns_committee" table
 @app.get('/committees_kns_committee/{CommitteeID}',
+         response_model=committees.KnsCommittee,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["committees"])
 async def get_single_data(CommitteeID: int):
     data = DB.get_single_data('committees_kns_committee',
                               'CommitteeID', CommitteeID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list members_mk_individual_factions table
 @app.get("/members_mk_individual_factions/list",
          status_code=200,
+         response_model=List[members.IndividualFactions],
+         responses={422: errors.LIMIT_ERROR},
          tags=["members"])
 async def get_mk_individual_factions_list(
     request: Request,
@@ -3357,17 +4078,19 @@ async def get_mk_individual_factions_list(
     query = "SELECT * FROM members_mk_individual_factions"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': True, 'data': data},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for list members_kns_position table
 @app.get("/members_kns_position/list",
          status_code=200,
+         response_model=List[members.Position],
+         responses={422: errors.LIMIT_ERROR},
          tags=["members"])
 async def get_position_list(
     request: Request,
@@ -3388,26 +4111,38 @@ async def get_position_list(
     query = "SELECT * FROM members_kns_position"
     data = DB.get_data_list(query, limit, offset, order_by, qs)
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Route for single "members_kns_position" table
 @app.get('/members_kns_position/{PositionID}',
+         response_model=members.Position,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=["members"])
 async def get_position(PositionID: int):
     data = DB.get_single_data('members_kns_position',
                               'PositionID', PositionID)
-    return {'success': True, 'data': data}
+    if isinstance(data, TypeError):
+       response_status = (status.HTTP_404_NOT_FOUND)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 # Aggragation
 @app.get('/minister_by_individual/{id}',
          status_code=200,
+         response_model=current_minister.MinisterByIndividual,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=['Current ministers'],
          description = """
              Retrieve information about a minister based on their individual ID.
@@ -3431,10 +4166,13 @@ async def get_position(PositionID: int):
 
              You can use this data to gain insights into the minister's political career and activities.
              """,
-         summary="Get current minister by individual identifier",
-         response_model=current_minister.MinisterResponseByIndividual)
+         summary="Get current minister by individual identifier")
 @app.get('/minister_by_personal/{id}',
          status_code=200,
+         response_model=current_minister.MinisterByPersonal,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=['Current ministers'],
          description = """
              Retrieve information about a minister based on their personal ID.
@@ -3442,7 +4180,7 @@ async def get_position(PositionID: int):
              This route returns data about a minister, including their personal details and legislative history.
              The keys in the 'data' dictionary provide the following information:
 
-             - 'personal_id': The unique identifier for the individual minister.
+             - 'PersonID': The unique identifier for the individual minister.
              - 'FirstName': The first name of the minister.
              - 'LastName': The last name of the minister.
              - 'GenderDesc': The gender of the minister.
@@ -3458,8 +4196,7 @@ async def get_position(PositionID: int):
 
              You can use this data to gain insights into the minister's political career and activities.
              """,
-         summary="Get current minister by personal identifier",
-         response_model=current_minister.MinisterResponseByPersonal)
+         summary="Get current minister by personal identifier")
 def get_minister(id: int, request: Request):
     request_path = request.scope['path']
     id_field = (
@@ -3469,16 +4206,20 @@ def get_minister(id: int, request: Request):
     query = QUERY.get_minister_query(id_field)
     data = DB.get_fully_today_member(query, (id,))
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data
+
 
 
 @app.get('/member_kns_by_individual/{id}',
          status_code=200,
+         response_model=current_knesset_member.KnessetMemberByIndividual,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=['Current knesset members'],
          description="""
              Retrieve detailed information about a specific Knesset member based on their unique individual ID.         
@@ -3500,17 +4241,20 @@ def get_minister(id: int, request: Request):
 
              This information provides a comprehensive overview of the Knesset member's political career and activities.
              """,
-         summary="Get current member knesset by individual identifier",
-         response_model=current_knesset_member.KnessetMemberResponseByIndividual)
+         summary="Get current member knesset by individual identifier")
 @app.get('/member_kns_by_personal/{id}',
          status_code=200,
+         response_model=current_knesset_member.KnessetMemberByPersonal,
+         responses={
+            404: errors.NO_DATA_FOUND_ERROR,
+          },
          tags=['Current knesset members'],
          description="""
              Retrieve detailed information about a specific Knesset member based on their unique personal ID.         
 
              The 'data' dictionary provides the following information:
 
-             - 'personal_id': The unique identifier for the individual Knesset member.
+             - 'PersonID': The unique identifier for the individual Knesset member.
              - 'FirstName': The first name of the Knesset member.
              - 'LastName': The last name of the Knesset member.
              - 'GenderDesc': The gender of the Knesset member.
@@ -3525,8 +4269,7 @@ def get_minister(id: int, request: Request):
 
              This information provides a comprehensive overview of the Knesset member's political career and activities.
              """,
-         summary="Get current member knesset by personal identifier",
-         response_model=current_knesset_member.KnessetMemberResponseByPersonal)
+         summary="Get current member knesset by personal identifier")
 def get_member_kns(id: int, request: Request):
     request_path = request.scope['path']
     id_field = (
@@ -3536,9 +4279,8 @@ def get_member_kns(id: int, request: Request):
     query = QUERY.get_member_kns_query(id_field)
     data = DB.get_fully_today_member(query, (id,))
     if isinstance(data, Exception):
-        response_status = (status.HTTP_404_NOT_FOUND
-                           if str(data) == 'No row found'
-                           else status.HTTP_400_BAD_REQUEST)
-        return JSONResponse(content={'success': False, 'data': str(data)},
-                            status_code=response_status)
-    return {'success': True, 'data': data}
+       response_status = (status.HTTP_404_NOT_FOUND
+                           if isinstance(data, TypeError)
+                           else status.HTTP_422_UNPROCESSABLE_ENTITY)
+       raise HTTPException(status_code=response_status, detail={'error': type(data).__name__,'msg':str(data)})
+    return data

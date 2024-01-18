@@ -8,6 +8,7 @@ RUN pip install -r requirements.txt
 COPY api ./api
 COPY models ./models
 COPY main.py ./
+COPY errors.py ./ 
 COPY config.py ./
 ENV PYTHONUNBUFFERED=1
 ENTRYPOINT ["gunicorn", "-c", "gunicorn_conf.py", "main:app"]
