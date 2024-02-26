@@ -1,9 +1,9 @@
-from datetime import datetime
 from pydantic import BaseModel
 from typing import List, Literal
 from datetime import date as dt
 from datetime import datetime
 from pydantic import HttpUrl
+
 
 class FactionChairpersons(BaseModel):
     mk_individual_id: int = 915
@@ -12,6 +12,7 @@ class FactionChairpersons(BaseModel):
     start_date: dt = "16/10/23"
     finish_date: dt | None = '24/10/23'
     knesset: int = 25
+
 
 class Govministries(BaseModel):
     mk_individual_id: int = 915
@@ -23,16 +24,18 @@ class Govministries(BaseModel):
     finish_date: dt | None = '24/10/23'
     knesset: int = 25
 
+
 class MembersPresence(BaseModel):
     mk_id: int = 790
     mk_name: str = "יצחק אהרונוביץ'"
-    date: dt= "05/07/10"
+    date: dt = "05/07/10"
     year: int = 2010
     month: int = 7
     day: int = 5
     year_week_number: int = 27
     total_attended_hours: int = 8
-    
+
+
 class Committees(BaseModel):
     mk_individual_id: int = 1097
     committee_id: int = 4228
@@ -42,6 +45,7 @@ class Committees(BaseModel):
     start_date: dt = "21/11/20"
     finish_date: dt | None = "23/10/21"
     knesset: int = 25
+
 
 class PersonAirflow(BaseModel):
     PersonID: int = 405
@@ -59,6 +63,7 @@ class Mksitecode(BaseModel):
     KnsID: int = 405
     SiteId: int = 12
 
+
 class Person(BaseModel):
     PersonID: int = 405
     LastName: str = "ליברמן"
@@ -68,6 +73,7 @@ class Person(BaseModel):
     Email: str | None = 'aliberman@knesset.gov.il'
     IsCurrent: bool = 'true'
     LastUpdatedDate: datetime = "2015-03-20T12:03:08"
+
 
 class Individual(BaseModel):
     mk_individual_id: int = 214
@@ -87,8 +93,9 @@ class Individual(BaseModel):
     IsCurrent: bool = 'true'
     LastUpdatedDate: datetime = "2022-11-10T11:19:09"
     altnames: List[str] = [
-      "אביגדור ליברמן"
+        "אביגדור ליברמן"
     ]
+
 
 class Factions(BaseModel):
     id: int = 1082
@@ -96,14 +103,16 @@ class Factions(BaseModel):
     start_date: dt = "15/08/22"
     finish_date: dt | None = "15/11/22"
     knessets: List[int] = [
-      24
+        24
     ]
+
 
 class IndividualNames(BaseModel):
     mk_individual_id: int = 209
     names: List[str] = [
-      "אליעזר כהן"
+        "אליעזר כהן"
     ]
+
 
 class FactionMemberships(BaseModel):
     faction_id: int = 1096
@@ -111,40 +120,41 @@ class FactionMemberships(BaseModel):
     start_date: dt = "16/10/23"
     finish_date: dt | None = "10/12/23"
     member_mk_ids: List[int] = [
-      1,
-      771,
-      914,
-      921,
-      30772,
-      953,
-      826,
-      828,
-      69,
-      1095,
-      1098,
-      1100,
-      1101,
-      974,
-      976,
-      1105,
-      723,
-      1109,
-      1111,
-      30809,
-      90,
-      987,
-      1116,
-      992,
-      1122,
-      1123,
-      1124,
-      1125,
-      1002,
-      1011,
-      30711,
-      1018
+        1,
+        771,
+        914,
+        921,
+        30772,
+        953,
+        826,
+        828,
+        69,
+        1095,
+        1098,
+        1100,
+        1101,
+        974,
+        976,
+        1105,
+        723,
+        1109,
+        1111,
+        30809,
+        90,
+        987,
+        1116,
+        992,
+        1122,
+        1123,
+        1124,
+        1125,
+        1002,
+        1011,
+        30711,
+        1018
     ]
     knesset: int = 25
+
 
 class PersonToPosition(BaseModel):
     PersonToPositionID: int = 379
@@ -164,6 +174,7 @@ class PersonToPosition(BaseModel):
     IsCurrent: bool = 'false'
     LastUpdatedDate: datetime = "2015-03-20T12:03:08"
 
+
 class IndividualFactions(BaseModel):
     mk_individual_id: int = 30809
     faction_id: int = 1096
@@ -172,11 +183,10 @@ class IndividualFactions(BaseModel):
     finish_date: dt | None = "15/10/21"
     knesset: int = 23
 
+
 class Position(BaseModel):
     PositionID: int = 29
     Description: str = "יושבת–ראש הקואליציה"
     GenderID: int = 250
     GenderDesc: Literal['זכר', 'נקבה'] = "נקבה"
     LastUpdatedDate: datetime = "2015-03-20T12:03:00"
-
-

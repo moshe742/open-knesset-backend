@@ -1,11 +1,9 @@
-from datetime import datetime
-from pydantic import BaseModel,Field
-from typing import Dict, List, Literal, Optional, Union
-from datetime import date
-from datetime import time
+from pydantic import BaseModel
+from typing import Dict, List
 from datetime import datetime
 from pydantic import HttpUrl
 from models.enums.enums import FileType
+
 
 class KnsDocumentCommitteeSessionDataservice(BaseModel):
     DocumentCommitteeSessionID: int = 71335
@@ -17,14 +15,16 @@ class KnsDocumentCommitteeSessionDataservice(BaseModel):
     FilePath: HttpUrl = "https://fs.knesset.gov.il//16/Committees/16_ptv_71308.doc"
     LastUpdatedDate: datetime = "2010-06-02T20:32:33"
 
+
 class KnsJointCommittee(BaseModel):
     JointCommitteeID: int = 1
     CommitteeID: int = 37
     ParticipantCommitteeID: int = 21
     LastUpdatedDate: datetime = "2015-03-20T12:02:57"
 
+
 class KnsCommitteeAirflow(BaseModel):
-    CommitteeID:  int = 1
+    CommitteeID: int = 1
     Name: str = "ועדת הכנסת"
     CategoryID: int | None = 1
     CategoryDesc: str | None = "ועדת הכנסת"
@@ -40,6 +40,7 @@ class KnsCommitteeAirflow(BaseModel):
     CommitteeParentName: str | None = "ועדת החקירה בנושא איתור והשבת נכסים של נספי השואה"
     IsCurrent: bool = "true"
     LastUpdatedDate: datetime = "2017-04-24T16:47:06"
+
 
 class BuildMeetings(BaseModel):
     CommitteeSessionID: int = 64529
@@ -58,8 +59,8 @@ class BuildMeetings(BaseModel):
     protocol_extension: str | None = ".doc"
     text_filename: str | None = "files/6/4/64529.txt"
     parts_filename: str | None = "files/6/4/64529.csv"
-    topics: List[str] | None =[
-      "בחירת יושב ראש הוועדה לביקורת המדינה"
+    topics: List[str] | None = [
+        "בחירת יושב ראש הוועדה לביקורת המדינה"
     ],
     mks: List[str] = [
         " יולי אדלשטיין",
@@ -69,10 +70,10 @@ class BuildMeetings(BaseModel):
         "אתי לבני",
         "גדעון סער"
     ]
-    invitees: List[Dict[str,str]] = [
-        {"name":"פרופ' שלמה סלונים"},
-        {"name":"פרופ' אריאל בנדור, דיקאן הפקולטה למשפטים, אוניברסיטת חיפה"},
-        {"name":"פרופ' זאב סגל, בית הספר לממשל, מדעי החברה, אוניברסיטת תל-אביב"},
+    invitees: List[Dict[str, str]] = [
+        {"name": "פרופ' שלמה סלונים"},
+        {"name": "פרופ' אריאל בנדור, דיקאן הפקולטה למשפטים, אוניברסיטת חיפה"},
+        {"name": "פרופ' זאב סגל, בית הספר לממשל, מדעי החברה, אוניברסיטת תל-אביב"},
     ]
     legal_advisors: List[str] = [
         " אתי בנדלר",
@@ -86,12 +87,14 @@ class BuildMeetings(BaseModel):
         61
     ]
 
+
 class DocumentBackgroundMaterialTitles(BaseModel):
     DocumentCommitteeSessionID: int = 0
     CommitteeSessionID: int = 64776
     CommitteeID: int = 25
     FilePath: HttpUrl = "https://fs.knesset.gov.il/\\16\\Committees\\16_cs_bg_339777.pdf"
     title: str = "חומר רקע - חוקי יסוד-1.6.03-רקע"
+
 
 class JoinedMeetings(BaseModel):
     CommitteeSessionID: int = 64515
@@ -114,10 +117,12 @@ class JoinedMeetings(BaseModel):
         "העסקת קטינות על מסלול הדוגמנות"
     ]
 
+
 class KnsCmtSitecode(BaseModel):
     CmtSiteCode: int = 1
     KnsID: int = 1
     SiteId: int = 1
+
 
 class MeetingProtocolsParts(BaseModel):
     DocumentCommitteeSessionID: int = 71333
@@ -135,9 +140,11 @@ class MeetingProtocolsParts(BaseModel):
     crc32c: str | None = "LLmkqg=="
     error: str | None = None
 
+
 class BuildRenderedMeetingsStats(BaseModel):
     CommitteeSessionID: int = 64529
     num_speech_parts: int = 7
+
 
 class KnsDocumentCommitteeSession(BaseModel):
     DocumentCommitteeSessionID: int = 138775
@@ -156,12 +163,13 @@ class KnsDocumentCommitteeSession(BaseModel):
     text_parsed_filename: str = "files/3/1/311813.txt"
     text_filesize: int = 6128
     text_crc32c: str = "F0QTJw=="
-    text_error:  str = None
+    text_error: str = None
     parts_protocol_extension: str = ".doc"
     parts_parsed_filename: str = "files/3/1/311813.csv"
     parts_filesize: int = 6123
     parts_crc32c: str = "b/YY6w=="
-    parts_error:  str = None
+    parts_error: str = None
+
 
 class KnsCmtSessionItem(BaseModel):
     CmtSessionItemID: int = 28006
@@ -172,6 +180,7 @@ class KnsCmtSessionItem(BaseModel):
     Name: str | None = "שינויים בתקציב לשנת 2003"
     ItemTypeID: int | None = 11
     LastUpdatedDate: datetime = "2012-09-20T22:23:49"
+
 
 class KnsCommitteeSession(BaseModel):
     CommitteeSessionID: int = 64515
@@ -194,7 +203,7 @@ class KnsCommitteeSession(BaseModel):
     parts_filesize: int = 157418
     parts_parsed_filename: str = "files/6/4/64516.csv"
     text_crc32c: str = "l58eRw=="
-    text_filesize: int= 157991
+    text_filesize: int = 157991
     text_parsed_filename: str = "files/6/4/64516.txt"
     item_ids: List[int] = [
         74814,
@@ -205,7 +214,7 @@ class KnsCommitteeSession(BaseModel):
         74811,
         74810
     ]
-    item_type_ids: List[int] = [ 
+    item_type_ids: List[int] = [
         11,
         11,
         11,
@@ -215,14 +224,13 @@ class KnsCommitteeSession(BaseModel):
         11
     ]
     topics: List[str] = [
-      "שינויים בתקציב לשנת 2003",
-      "בחירת יו\"ר לועדה הזמנית",
-      "תקנות התקשורת (בזק ושידורים)(חישוב תשלומים בעד שירותי בזק והצמדתם)(תיקון), התשס\"ג - 2003",
-      "תקנות התקשורת (בזק ושידורים)(תשלומים בעד שירותי בזק המפורטים בתוספת לחוק)(תיקון מס' 2), התשס\"ג - 2003",
-      "צו תעריף המכס והפטורים ומס קניה על טובין (תיקון מס' 115), התשס\"ג - 2003",
-      "צו תעריף המכס והפטורים ומס קניה על טובין (הוראת שעה)(מס' 3), התשס\"ג - 2003 (פסיפס מקרמיקה וזכוכית)",
-      "צו תעריף המכס והפטורים ומס קניה על טובין (תיקון מס' 110), התשס\"ג - 2002 (דגים שנדוגו ע\"י ספינות דייג ישראליות)"
-    ]
+        "שינויים בתקציב לשנת 2003",
+        "בחירת יו\"ר לועדה הזמנית",
+        "תקנות התקשורת (בזק ושידורים)(חישוב תשלומים בעד שירותי בזק והצמדתם)(תיקון), התשס\"ג - 2003",
+        "תקנות התקשורת (בזק ושידורים)(תשלומים בעד שירותי בזק המפורטים בתוספת לחוק)(תיקון מס' 2), התשס\"ג - 2003",
+        "צו תעריף המכס והפטורים ומס קניה על טובין (תיקון מס' 115), התשס\"ג - 2003",
+        "צו תעריף המכס והפטורים ומס קניה על טובין (הוראת שעה)(מס' 3), התשס\"ג - 2003 (פסיפס מקרמיקה וזכוכית)",
+        "צו תעריף המכס והפטורים ומס קניה על טובין (תיקון מס' 110), התשס\"ג - 2002 (דגים שנדוגו ע\"י ספינות דייג ישראליות)"]
     committee_name: str = "ועדת החוץ והביטחון"
     bill_names: List[str] = [
         "חוק הגנה על עובדים בשעת חירום (הוראת שעה), התשס\"ג-2003"
@@ -244,6 +252,7 @@ class DocumentCommitteeSessionsParsing(BaseModel):
     LastUpdatedDate: datetime = "2010-06-02T20:32:33"
     KnessetNum: int = 16
 
+
 class DownloadDocumentCommitteeSession(BaseModel):
     DocumentCommitteeSessionID: int = 71333
     CommitteeSessionID: int = 65782
@@ -259,6 +268,7 @@ class DownloadDocumentCommitteeSession(BaseModel):
     crc32c: str | None = "UqP16Q=="
     error: str | None = None
 
+
 class MeetingProtocolsText(BaseModel):
     DocumentCommitteeSessionID: int = 71333
     CommitteeSessionID: int = 65782
@@ -269,11 +279,12 @@ class MeetingProtocolsText(BaseModel):
     FilePath: HttpUrl | None = "http://fs.knesset.gov.il//16/Committees/16_ptv_71307.doc"
     LastUpdatedDate: datetime = "2010-06-02T20:32:33"
     KnessetNum: int | None = 16
-    protocol_extension: str  | None=  ".doc"
-    parsed_filename: str  | None= "files/6/5/65782.txt"
+    protocol_extension: str | None = ".doc"
+    parsed_filename: str | None = "files/6/5/65782.txt"
     filesize: int | None = 82413
     crc32c: str | None = "56WyDA=="
     error: str | None = None
+
 
 class KnsCommittee(BaseModel):
     CommitteeID: int = 1
@@ -292,9 +303,3 @@ class KnsCommittee(BaseModel):
     CommitteeParentName: str | None = "ועדת החקירה בנושא איתור והשבת נכסים של נספי השואה"
     IsCurrent: bool = "true"
     LastUpdatedDate: datetime = "2017-04-24T16:47:06"
-
-
-
-
-
-    

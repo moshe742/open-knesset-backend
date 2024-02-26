@@ -1,9 +1,9 @@
-
 from pydantic import BaseModel
 from typing import List
 from datetime import date as dt
 from datetime import time
 from models.enums.enums import ResultTypeNameEnum, ResultTypeIDEnum
+
 
 class ViewVoteRsltsHdrApproved(BaseModel):
     id: int = 8
@@ -29,6 +29,7 @@ class ViewVoteRsltsHdrApproved(BaseModel):
     modifier: str = "Unknown"
     remark: str | None = "הצעתו של חבר הכנסת אפי איתם"
 
+
 class VoteRsltsKmmbrShadowExtra(BaseModel):
     vote_id: int = 94
     kmmbr_id: str = "000000405"
@@ -43,6 +44,7 @@ class VoteRsltsKmmbrShadowExtra(BaseModel):
     result_type_name: str = "בעד"
     mk_individual_id: int = 12
 
+
 class ViewVoteMkIndividual(BaseModel):
     vip_id: str = "000000405"
     mk_individual_id: int = 12
@@ -50,6 +52,7 @@ class ViewVoteMkIndividual(BaseModel):
     mk_individual_name_eng: str = "Elon"
     mk_individual_first_name: str = "בנימין"
     mk_individual_first_name_eng: str = "Benyamin"
+
 
 class VoteRsltsKmmbrShadow(BaseModel):
     vote_id: int = 94
@@ -88,38 +91,39 @@ class ViewVoteRsltsHdrApprovedExtra(BaseModel):
     modifier: str = "Unknown"
     remark: str | None = "הצעתו של חבר הכנסת אפי איתם"
     mk_ids_pro: List[int] = [
-      704,
-      137,
-      104,
-      201,
-      126,
-      197,
-      218,
-      13,
-      36,
-      29,
-      208,
-      697,
-      756
+        704,
+        137,
+        104,
+        201,
+        126,
+        197,
+        218,
+        13,
+        36,
+        29,
+        208,
+        697,
+        756
     ]
     mk_ids_against: List[int] = [
-      209,
-      751,
-      3,
-      92
+        209,
+        751,
+        3,
+        92
     ]
     mk_ids_abstain: List[int] = [
-      220,
-      100,
-      115,
-      65,
-      739,
-      5
+        220,
+        100,
+        115,
+        65,
+        739,
+        5
     ]
     knesset: int = 16
     plenum: int = 2
     assembly: int = 1
     pagra: bool = "false"
+
 
 class VoteResultType(BaseModel):
     result_type_id: ResultTypeIDEnum = ResultTypeIDEnum.CANCELED

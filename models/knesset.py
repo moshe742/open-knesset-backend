@@ -1,12 +1,13 @@
-from datetime import datetime
 from pydantic import BaseModel
 from datetime import datetime
 
+
 class KnsGovministry(BaseModel):
     GovMinistryID: int = 490
-    Name: str =  "אין נתונים"
+    Name: str = "אין נתונים"
     IsActive: bool = 'false'
     LastUpdatedDate: datetime = "2019-12-31T14:45:32"
+
 
 class KnsKnessetDates(BaseModel):
     KnessetDateID: int = 1
@@ -18,6 +19,7 @@ class KnsKnessetDates(BaseModel):
     PlenumFinish: datetime | None = "1993-03-24T00:00:00"
     IsCurrent: bool = 'false'
 
+
 class KnsStatus(BaseModel):
     StatusID: int = 6
     Desc: str = "בטיפול המשרד הנשאל"
@@ -27,8 +29,8 @@ class KnsStatus(BaseModel):
     IsActive: bool | None = 'true'
     LastUpdatedDate: datetime = "2013-10-06T14:08:19"
 
+
 class KnsItemtype(BaseModel):
     ItemTypeID: int = 1
     Desc: str = "שאילתה"
     TableName: str | None = "KNS_Query"
-      

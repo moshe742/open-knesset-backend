@@ -8,11 +8,12 @@ class LobbyistClients(BaseModel):
     Name: str = "Abbvie"
     ClientsNames: str = "Abbvie- ייצוג קבוע"
 
+
 class Lobbyist(BaseModel):
     LobbyistID: int = 879
     IdentityNumber: str = "029723319"
-    FullName: str =  "אביב ברנט"
-    PermitTypeValue: str =  "שדלן זמני"
+    FullName: str = "אביב ברנט"
+    PermitTypeValue: str = "שדלן זמני"
     Key: Decimal = "2.0"
     CorporationName: str = "שדלן עצמאי"
     IsIndependent: bool = 'true'

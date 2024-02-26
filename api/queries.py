@@ -1,6 +1,6 @@
 def get_member_kns_query(id_field):
-         return f"""
-                SELECT 
+    return f"""
+                SELECT
                     f."{id_field}",
                     f."FirstName",
                     f."LastName",
@@ -21,7 +21,7 @@ def get_member_kns_query(id_field):
                 LEFT JOIN members_mk_individual_faction_chairpersons ch
                     ON ch."mk_individual_id" = f."mk_individual_id"
                 LEFT JOIN (
-                    SELECT 
+                    SELECT
                         jsonb_array_elements_text(m.member_mk_ids)::integer AS member_mk_id,
                         array_agg(DISTINCT m.knesset) AS knesset_array
                     FROM members_faction_memberships m
@@ -38,9 +38,10 @@ def get_member_kns_query(id_field):
                 ORDER BY m."faction_name" DESC
                 LIMIT 1;
     """
-	
-def get_minister_query(id_field):	
-         return f"""
+
+
+def get_minister_query(id_field):
+    return f"""
                 SELECT
                     f."{id_field}",
                     f."FirstName",
@@ -93,7 +94,7 @@ def get_minister_query(id_field):
 
 
 def get_members():
-    return f"""
+    return """
             SELECT
                 members_mk_individual.mk_individual_id,
                 members_mk_individual.mk_individual_first_name,
@@ -110,12 +111,12 @@ def get_members():
                 COALESCE(json_agg(DISTINCT migm.*), '[]') AS govministries
             FROM
                 members_mk_individual
-            LEFT JOIN members_mk_individual_committees mci ON members_mk_individual.mk_individual_id = mci.mk_individual_id AND mci.knesset = %s
-            LEFT JOIN members_mk_individual_factions mif ON members_mk_individual.mk_individual_id = mif.mk_individual_id AND mif.knesset = %s
-            LEFT JOIN members_mk_individual_faction_chairpersons mfcp ON members_mk_individual.mk_individual_id = mfcp.mk_individual_id AND mfcp.knesset = %s
-            LEFT JOIN members_mk_individual_govministries migm ON members_mk_individual.mk_individual_id = migm.mk_individual_id AND migm.knesset = %s
+            LEFT JOIN members_mk_individual_committees mci ON members_mk_individual.mk_individual_id = mci.mk_individual_id AND mci.knesset = %(knesset_term)s
+            LEFT JOIN members_mk_individual_factions mif ON members_mk_individual.mk_individual_id = mif.mk_individual_id AND mif.knesset = %(knesset_term)s
+            LEFT JOIN members_mk_individual_faction_chairpersons mfcp ON members_mk_individual.mk_individual_id = mfcp.mk_individual_id AND mfcp.knesset = %(knesset_term)s
+            LEFT JOIN members_mk_individual_govministries migm ON members_mk_individual.mk_individual_id = migm.mk_individual_id AND migm.knesset = %(knesset_term)s
             WHERE
-                members_mk_individual."IsCurrent" = %s
+                members_mk_individual."IsCurrent" = %(is_current)s
             GROUP BY
                 members_mk_individual.mk_individual_id, members_mk_individual.mk_individual_first_name,members_mk_individual.mk_individual_name,members_mk_individual."PersonID",members_mk_individual."GenderID"
                 ,
@@ -125,18 +126,50 @@ def get_members():
                 members_mk_individual.altnames;
     """
 
-def get_members_presence(mk_individual_id:int):
-    return f"""select * from members_presence where 
+
+def get_member():
+    return """
+        SELECT
+            members_mk_individual.mk_individual_id,
+            members_mk_individual.mk_individual_first_name,
+            members_mk_individual.mk_individual_name,
+            members_mk_individual."PersonID",
+            members_mk_individual."GenderID",
+            members_mk_individual."GenderDesc",
+            members_mk_individual."IsCurrent",
+            members_mk_individual.mk_individual_email,
+            members_mk_individual.altnames,
+            COALESCE(json_agg(DISTINCT mci.*), '[]') AS committee_positions,
+            COALESCE(json_agg(DISTINCT mif.*), '[]') AS factions,
+            COALESCE(json_agg(DISTINCT mfcp.*), '[]') AS faction_chairpersons,
+            COALESCE(json_agg(DISTINCT migm.*), '[]') AS govministries
+        FROM
+            members_mk_individual
+        LEFT JOIN members_mk_individual_committees mci ON members_mk_individual.mk_individual_id = mci.mk_individual_id AND mci.knesset = %(knesset_term)s
+        LEFT JOIN members_mk_individual_factions mif ON members_mk_individual.mk_individual_id = mif.mk_individual_id AND mif.knesset = %(knesset_term)s
+        LEFT JOIN members_mk_individual_faction_chairpersons mfcp ON members_mk_individual.mk_individual_id = mfcp.mk_individual_id AND mfcp.knesset = %(knesset_term)s
+        LEFT JOIN members_mk_individual_govministries migm ON members_mk_individual.mk_individual_id = migm.mk_individual_id AND migm.knesset = %(knesset_term)s
+        WHERE
+            members_mk_individual."mk_individual_id" = %(mk_individual_id)s
+        GROUP BY
+            members_mk_individual.mk_individual_id, members_mk_individual.mk_individual_first_name, members_mk_individual.mk_individual_name, members_mk_individual."PersonID", members_mk_individual."GenderID",
+            members_mk_individual."GenderDesc", members_mk_individual."IsCurrent", members_mk_individual.mk_individual_email, members_mk_individual.altnames;
+    """
+
+
+def get_members_presence(mk_individual_id: int):
+    return f"""select * from members_presence where
             mk_id = {mk_individual_id} order by date desc
     """
 
-def get_members_attended_committee_meetings(mk_individual_id:int):
+
+def get_members_attended_committee_meetings(mk_individual_id: int):
     return f"""SELECT
-                "CommitteeSessionID", "KnessetNum", "TypeID", "TypeDesc", 
+                "CommitteeSessionID", "KnessetNum", "TypeID", "TypeDesc",
                 "CommitteeID",
                 "Location", "SessionUrl", "BroadcastUrl",
                 "StartDate", "FinishDate", "Note",
-                topics, committee_name, bill_names, bill_types, 
+                topics, committee_name, bill_names, bill_types,
                 related_to_legislation
             FROM
                 people_committees_meeting_attendees
@@ -144,8 +177,10 @@ def get_members_attended_committee_meetings(mk_individual_id:int):
                 attended_mk_individual_ids @> '[{mk_individual_id}]'
     """
 
-def get_members_votes(mk_individual_id:int):
-    return f"""SELECT knesset_num, session_id, sess_item_id, sess_item_dscr, vote_item_id, vote_item_dscr, vote_date, vote_time, is_elctrnc_vote, is_accepted, total_for, total_against, total_abstain, 'pro' AS mk_vote
+
+def get_members_votes(mk_individual_id: int):
+    return f"""SELECT * FROM (
+                SELECT knesset_num, session_id, sess_item_id, sess_item_dscr, vote_item_id, vote_item_dscr, vote_date, vote_time, is_elctrnc_vote, is_accepted, total_for, total_against, total_abstain, 'pro' AS mk_vote
                 FROM votes_view_vote_rslts_hdr_approved_extra
                 WHERE mk_ids_pro @> '[{mk_individual_id}]'
 
@@ -159,10 +194,12 @@ def get_members_votes(mk_individual_id:int):
 
                 SELECT knesset_num, session_id, sess_item_id, sess_item_dscr, vote_item_id, vote_item_dscr, vote_date, vote_time, is_elctrnc_vote, is_accepted, total_for, total_against, total_abstain, 'abstain' AS mk_vote
                 FROM votes_view_vote_rslts_hdr_approved_extra
-                WHERE mk_ids_abstain @> '[{mk_individual_id}]';
-    """  
+                WHERE mk_ids_abstain @> '[{mk_individual_id}]'
+                ) a
+    """
 
-def get_members_bills(mk_individual_id:int):
+
+def get_members_bills(mk_individual_id: int):
     return f"""SELECT
             bkb."BillID",
             bkb."KnessetNum",
@@ -192,5 +229,4 @@ def get_members_bills(mk_individual_id:int):
             bills_kns_bill bkb ON bkb."BillID" = bkb_init."BillID"
         WHERE
             mki.mk_individual_id = {mk_individual_id}
-    """       
-    
+    """
