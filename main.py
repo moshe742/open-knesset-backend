@@ -2424,8 +2424,7 @@ async def get_documentcommitteesession_dataservice_list(
     tags=["committees"])
 async def get_document_committee_session(DocumentCommitteeSessionID: int):
     """Route for single "committees_kns_documentcommitteesession_dataservice" table"""
-    data = DB.get_single_data
-    (
+    data = DB.get_single_data(
         'committees_kns_documentcommitteesession_dataservice',
         'DocumentCommitteeSessionID',
         DocumentCommitteeSessionID
@@ -3194,8 +3193,7 @@ async def get_committee_sessions_for_parsing_list(
     tags=["committees"])
 async def get_document_committee_sessions_for_parsing(DocumentCommitteeSessionID: int):
     """Route for single "committees_document_committee_sessions_for_parsing" table"""
-    data = DB.get_single_data
-    (
+    data = DB.get_single_data(
         'committees_document_committee_sessions_for_parsing',
         'DocumentCommitteeSessionID',
         DocumentCommitteeSessionID
@@ -4819,6 +4817,7 @@ def get_minister(id: int, request: Request):
     return data
 
 
+# TODO: duplicate urls?
 @app.get('/member_kns_by_individual/{id}',
          status_code=200,
          response_model=current_knesset_member.KnessetMemberByIndividual,
